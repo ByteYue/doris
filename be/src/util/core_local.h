@@ -110,7 +110,7 @@ public:
         _size = controller->size();
         _values.resize(_size, nullptr);
         for (int i = 0; i < _size; ++i) {
-            void* ptr = controller->allocator(i)->get_or_create(_id);
+            void* ptr = controller->allocator(i)->get_or_create(_id);// FIXME:会不会删除的时候对不齐
             _values[i] = new (ptr) T(init_value);
         }
     }

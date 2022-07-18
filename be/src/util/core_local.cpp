@@ -32,7 +32,7 @@ struct alignas(CACHE_LINE_SIZE) CoreDataBlock {
 
     static void* operator new(size_t nbytes) {
         void* p = nullptr;
-        if (posix_memalign(&p, alignof(CoreDataBlock), nbytes) == 0) {
+        if (posix_memalign(&p, alignof(CoreDataBlock), nbytes) == 0) {  //BUGFIX:memory leak
             return p;
         }
         throw std::bad_alloc();
@@ -55,7 +55,7 @@ public:
         }
         CoreDataBlock* block = _blocks[block_id];
         if (block == nullptr) {
-            block = new CoreDataBlock();
+            block = new CoreDataBlock();//BUGFIX:memory leak
             _blocks[block_id] = block;
         }
         size_t offset = (id % ELEMENTS_PER_BLOCK) * ELEMENT_BYTES;

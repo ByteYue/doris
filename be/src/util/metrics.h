@@ -355,7 +355,7 @@ public:
         auto inserted_metric = _metrics.insert(std::make_pair(metric_type, nullptr));
         if (inserted_metric.second) {
             // If not exist, make a new metric pointer
-            inserted_metric.first->second = new T();
+            inserted_metric.first->second = new T();// FIXME:我怀疑是这个new没能delete
         }
         return inserted_metric.first->second;
     }
