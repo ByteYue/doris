@@ -34,6 +34,7 @@ import org.apache.doris.common.Config;
 import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.Pair;
 import org.apache.doris.common.util.TimeUtils;
+import org.apache.doris.load.Load;
 import org.apache.doris.persist.ReplicaPersistInfo;
 import org.apache.doris.resource.Tag;
 import org.apache.doris.system.Backend;
@@ -768,6 +769,8 @@ public class TabletSchedCtx implements Comparable<TabletSchedCtx> {
                 tabletId, schemaHash, Lists.newArrayList(tSrcBe), storageMedium,
                 visibleVersion, (int) (taskTimeoutMs / 1000));
         cloneTask.setPathHash(srcPathHash, destPathHash);
+
+        LOG.info("srcID {}, destID {}, tabletStatus {}", srcReplica.getBackendId(), destBackendId, tabletStatus);
         
         // if this is a balance task, or this is a repair task with REPLICA_MISSING/REPLICA_RELOCATING or REPLICA_MISSING_IN_CLUSTER,
         // we create a new replica with state CLONE

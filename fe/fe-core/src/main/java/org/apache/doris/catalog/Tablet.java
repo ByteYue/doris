@@ -423,7 +423,11 @@ public class Tablet extends MetaObject implements Writable {
         Replica needFurtherRepairReplica = null;
         Set<String> hosts = Sets.newHashSet();
         ArrayList<Long> versions = new ArrayList<>();
+        LOG.info("check all replica of tablet {}, replica num {}", this.getId(), replicationNum);
         for (Replica replica : replicas) {
+            LOG.info("show replica {}, version {}, BE {}, lastFailedVer {}, needFurther {}, version cnt {}",
+                    replica.getId(), replica.getVersion(), replica.getBackendId(), replica.getLastFailedVersion(),
+                    replica.needFurtherRepair(), replica.getVersionCount());
             Backend backend = systemInfoService.getBackend(replica.getBackendId());
             if (backend == null || !backend.isAlive() || !replica.isAlive() || !hosts.add(backend.getHost())
                     || replica.tooSlow()) {
@@ -465,6 +469,7 @@ public class Tablet extends MetaObject implements Writable {
 
         // 1. alive replicas are not enough
         int aliveBackendsNum = aliveBeIdsInCluster.size();
+        LOG.info("alivebackendnum {}, alive replica num {}", aliveBackendsNum, alive);
         if (alive == 0) {
             return Pair.create(TabletStatus.UNRECOVERABLE, Priority.VERY_HIGH);
         } else if (alive < replicationNum && replicas.size() >= aliveBackendsNum
@@ -484,6 +489,7 @@ public class Tablet extends MetaObject implements Writable {
             return Pair.create(TabletStatus.REPLICA_MISSING, TabletSchedCtx.Priority.NORMAL);
         }
 
+        LOG.info("aliveAndVersionComplete {}", aliveAndVersionComplete);
         // 2. version complete replicas are not enough
         if (aliveAndVersionComplete == 0) {
             return Pair.create(TabletStatus.UNRECOVERABLE, Priority.VERY_HIGH);
@@ -499,6 +505,7 @@ public class Tablet extends MetaObject implements Writable {
             return Pair.create(TabletStatus.REDUNDANT, TabletSchedCtx.Priority.VERY_HIGH);
         }
 
+        LOG.info("stable num {}, replicationNum {}", stable, replicationNum);
         // 3. replica is under relocating
         if (stable < replicationNum) {
             List<Long> replicaBeIds = replicas.stream()
@@ -519,6 +526,7 @@ public class Tablet extends MetaObject implements Writable {
             }
         }
 
+        LOG.info("availableInCluster {}", availableInCluster);
         // 4. healthy replicas in cluster are not enough
         if (availableInCluster < replicationNum) {
             return Pair.create(TabletStatus.REPLICA_MISSING_IN_CLUSTER, TabletSchedCtx.Priority.LOW);
