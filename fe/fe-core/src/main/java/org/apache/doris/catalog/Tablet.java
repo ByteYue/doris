@@ -425,9 +425,9 @@ public class Tablet extends MetaObject implements Writable {
         ArrayList<Long> versions = new ArrayList<>();
         LOG.info("check all replica of tablet {}, replica num {}", this.getId(), replicationNum);
         for (Replica replica : replicas) {
-            LOG.info("show replica {}, version {}, BE {}, lastFailedVer {}, needFurther {}, version cnt {}",
+            LOG.info("show replica {}, version {}, BE {}, lastFailedVer {}, needFurther {}, version cnt {}, state {}",
                     replica.getId(), replica.getVersion(), replica.getBackendId(), replica.getLastFailedVersion(),
-                    replica.needFurtherRepair(), replica.getVersionCount());
+                    replica.needFurtherRepair(), replica.getVersionCount(), replica.getState());
             Backend backend = systemInfoService.getBackend(replica.getBackendId());
             if (backend == null || !backend.isAlive() || !replica.isAlive() || !hosts.add(backend.getHost())
                     || replica.tooSlow()) {
@@ -517,7 +517,8 @@ public class Tablet extends MetaObject implements Writable {
                     && availableBeIds.size() >= replicationNum
                     && replicationNum > 1) { // No BE can be choose to create a new replica
                 return Pair.create(TabletStatus.FORCE_REDUNDANT,
-                        stable < (replicationNum / 2) + 1 ? TabletSchedCtx.Priority.NORMAL : TabletSchedCtx.Priority.LOW);
+                        stable < (replicationNum / 2) + 1 ? TabletSchedCtx.Priority.NORMAL
+                                : TabletSchedCtx.Priority.LOW);
             }
             if (stable < (replicationNum / 2) + 1) {
                 return Pair.create(TabletStatus.REPLICA_RELOCATING, TabletSchedCtx.Priority.NORMAL);
@@ -568,26 +569,27 @@ public class Tablet extends MetaObject implements Writable {
     /**
      * Check colocate table's tablet health
      * 1. Mismatch:
-     *      backends set:       1,2,3
-     *      tablet replicas:    1,2,5
-     *
-     *      backends set:       1,2,3
-     *      tablet replicas:    1,2
-     *
-     *      backends set:       1,2,3
-     *      tablet replicas:    1,2,4,5
-     *
+     * backends set:       1,2,3
+     * tablet replicas:    1,2,5
+     * <p>
+     * backends set:       1,2,3
+     * tablet replicas:    1,2
+     * <p>
+     * backends set:       1,2,3
+     * tablet replicas:    1,2,4,5
+     * <p>
      * 2. Version incomplete:
-     *      backend matched, but some replica(in backends set)'s version is incomplete
-     *
+     * backend matched, but some replica(in backends set)'s version is incomplete
+     * <p>
      * 3. Redundant:
-     *      backends set:       1,2,3
-     *      tablet replicas:    1,2,3,4
-     *
+     * backends set:       1,2,3
+     * tablet replicas:    1,2,3,4
+     * <p>
      * No need to check if backend is available. We consider all backends in 'backendsSet' are available,
      * If not, unavailable backends will be relocated by CalocateTableBalancer first.
      */
-    public TabletStatus getColocateHealthStatus(long visibleVersion, ReplicaAllocation replicaAlloc, Set<Long> backendsSet) {
+    public TabletStatus getColocateHealthStatus(long visibleVersion, ReplicaAllocation replicaAlloc,
+            Set<Long> backendsSet) {
         // Here we don't need to care about tag. Because the replicas of the colocate table has been confirmed
         // in ColocateTableCheckerAndBalancer.
         Short totalReplicaNum = replicaAlloc.getTotalReplicaNum();
