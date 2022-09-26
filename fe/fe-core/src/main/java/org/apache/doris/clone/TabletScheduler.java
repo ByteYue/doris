@@ -1391,6 +1391,9 @@ public class TabletScheduler extends MasterDaemon {
         } catch (SchedException e) {
             tabletCtx.increaseFailedRunningCounter();
             tabletCtx.setErrMsg(e.getMessage());
+            LOG.info("tabletID {} finish clone task in BE {} throw exception, status {}, msg {}", tabletId,
+                    cloneTask.getBackendId(), e.getStatus(),
+                    e.getMessage());
             if (e.getStatus() == Status.RUNNING_FAILED) {
                 stat.counterCloneTaskFailed.incrementAndGet();
                 addToRunningTablets(tabletCtx);
@@ -1413,6 +1416,7 @@ public class TabletScheduler extends MasterDaemon {
             return true;
         }
 
+        LOG.info("tablet {} succeeds in clone task in BE {}", tabletId, cloneTask.getBackendId());
         Preconditions.checkState(tabletCtx.getState() == TabletSchedCtx.State.FINISHED);
         stat.counterCloneTaskSucceeded.incrementAndGet();
         gatherStatistics(tabletCtx);
