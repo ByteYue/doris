@@ -127,6 +127,9 @@ public class ResultReceiver {
             if (e.getMessage().contains("time out")) {
                 // if timeout, we set error code to TIMEOUT, and it will not retry querying.
                 status.setStatus(new Status(TStatusCode.TIMEOUT, e.getMessage()));
+            } else if (e.getMessage().contains("FLOW_CONTROL_ERROR")) {
+                status.setStatus(
+                        new Status(TStatusCode.INTERNAL_ERROR, e.getMessage().concat(" return data size too large ")));
             } else {
                 status.setRpcStatus(e.getMessage());
                 SimpleScheduler.addToBlacklist(backendId, e.getMessage());
