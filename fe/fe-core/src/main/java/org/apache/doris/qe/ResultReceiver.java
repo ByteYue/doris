@@ -129,7 +129,8 @@ public class ResultReceiver {
                 status.setStatus(new Status(TStatusCode.TIMEOUT, e.getMessage()));
             } else if (e.getMessage().contains("FLOW_CONTROL_ERROR")) {
                 status.setStatus(
-                        new Status(TStatusCode.INTERNAL_ERROR, e.getMessage().concat(" return data size too large ")));
+                        new Status(TStatusCode.INTERNAL_ERROR, e.getMessage()
+                                .concat("result set size too large, increase grpc_max_message_size_bytes might help")));
             } else {
                 status.setRpcStatus(e.getMessage());
                 SimpleScheduler.addToBlacklist(backendId, e.getMessage());
