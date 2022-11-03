@@ -129,6 +129,10 @@ Status ClientCacheHelper::_create_client(const TNetworkAddress& hostport,
     {
         std::lock_guard<std::mutex> lock(_lock);
         // Because the client starts life 'checked out', we don't add it to the cache map
+        // TODO(yuejing): what about the origin client if another thread tries to create the same client simultaneously?
+        if (UNLIKELY(_client_map.count(*client_key) > 0)) {
+            // directly destruct the duplicate client_impl might erase the data accessed later by the another existing client
+        }
         _client_map[*client_key] = client_impl.release();
     }
 
