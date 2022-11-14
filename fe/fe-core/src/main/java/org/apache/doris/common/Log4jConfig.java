@@ -102,6 +102,9 @@ public class Log4jConfig extends XmlConfiguration {
             + "    <Logger name=\"audit\" level=\"ERROR\" additivity=\"false\">\n"
             + "      <AppenderRef ref=\"Auditfile\"/>\n"
             + "    </Logger>\n"
+            + "    <Logger name=\"io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2FrameLogger\" level=\"INFO\" additivity=\"false\">\n"
+            + "      <AppenderRef ref=\"Auditfile\"/>\n"
+            + "    </Logger>\n"
             + "    <!--REPLACED BY AUDIT AND VERBOSE MODULE NAMES-->\n"
             + "  </Loggers>\n"
             + "</Configuration>";
