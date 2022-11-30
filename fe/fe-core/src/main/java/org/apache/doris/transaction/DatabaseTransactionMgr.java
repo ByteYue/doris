@@ -321,8 +321,8 @@ public class DatabaseTransactionMgr {
             checkRunningTxnExceedLimit(sourceType);
 
             long tid = idGenerator.getNextTransactionId();
-            LOG.info("begin transaction: txn id {} with label {} from coordinator {}, listner id: {}",
-                    tid, label, coordinator, listenerId);
+            LOG.info("begin transaction: txn id {} with label {} from coordinator {}, listner id: {}, db Id {}",
+                    tid, label, coordinator, listenerId, dbId);
             TransactionState transactionState = new TransactionState(dbId, tableIdList, tid, label, requestId, sourceType,
                     coordinator, listenerId, timeoutSecond * 1000);
             transactionState.setPrepareTime(System.currentTimeMillis());
