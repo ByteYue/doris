@@ -103,8 +103,7 @@ public class CastExpr extends Expr {
             analyze();
         } catch (AnalysisException ex) {
             LOG.warn("Implicit casts fail", ex);
-            Preconditions.checkState(false,
-                    "Implicit casts should never throw analysis exception.");
+            Preconditions.checkState(false, ex);
         }
         analysisDone();
     }
@@ -562,9 +561,9 @@ public class CastExpr extends Expr {
         try {
             analyze();
         } catch (AnalysisException ex) {
-            LOG.warn("Implicit casts fail", ex);
+            LOG.warn("Implicit casts fail", ex.getMessage());
             Preconditions.checkState(false,
-                    "Implicit casts should never throw analysis exception.");
+                    "Implicit casts fail", ex.getMessage());
         }
         FunctionName fnName = new FunctionName(getFnName(type));
         Function searchDesc = new Function(fnName, Arrays.asList(collectChildReturnTypes()), Type.INVALID, false);
