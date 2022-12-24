@@ -65,9 +65,11 @@ public class ListPartitionInfo extends PartitionInfo {
         // get partition key
         PartitionKeyDesc partitionKeyDesc = desc.getPartitionKeyDesc();
 
+        // we might receive one whole empty values list, we should add default partition value for
+        // such occasion
         for (List<PartitionValue> values : partitionKeyDesc.getInValues()) {
-            Preconditions.checkArgument(values.size() == partitionColumns.size(),
-                    "partition key desc list size[" + values.size() + "] is not equal to "
+            Preconditions.checkArgument(values.size() <= partitionColumns.size(),
+                    "partition key desc list size[" + values.size() + "] is not less than "
                             + "partition column size[" + partitionColumns.size() + "]");
         }
         List<PartitionKey> partitionKeys = new ArrayList<>();
