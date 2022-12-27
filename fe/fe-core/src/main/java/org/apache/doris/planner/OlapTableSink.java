@@ -338,6 +338,7 @@ public class OlapTableSink extends DataSink {
                     tExprNodes.add(partitionKey.getKeys().get(i).treeToThrift().getNodes().get(0));
                 }
                 tPartition.addToInKeys(tExprNodes);
+                tPartition.setIsDefaultPartition(((ListPartitionItem) partitionItem).isDefaultPatition());
             }
         }
     }

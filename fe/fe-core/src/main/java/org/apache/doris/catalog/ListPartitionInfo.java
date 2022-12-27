@@ -73,6 +73,7 @@ public class ListPartitionInfo extends PartitionInfo {
                             + "partition column size[" + partitionColumns.size() + "]");
         }
         List<PartitionKey> partitionKeys = new ArrayList<>();
+        boolean isDefaultListPartition = false;
         try {
             for (List<PartitionValue> values : partitionKeyDesc.getInValues()) {
                 PartitionKey partitionKey = PartitionKey.createListPartitionKey(values, partitionColumns);
@@ -83,10 +84,15 @@ public class ListPartitionInfo extends PartitionInfo {
                 }
                 partitionKeys.add(partitionKey);
             }
+            if (partitionKeyDesc.getInValues().size() == 1 && partitionKeyDesc.getInValues().get(0).isEmpty()) {
+                isDefaultListPartition = true;
+            }
         } catch (AnalysisException e) {
             throw new DdlException("Invalid list value format: " + e.getMessage());
         }
-        return new ListPartitionItem(partitionKeys);
+        ListPartitionItem item = new ListPartitionItem(partitionKeys);
+        item.setDefaultPartition(isDefaultListPartition);
+        return item;
     }
 
     private void checkNewPartitionKey(PartitionKey newKey, PartitionKeyDesc keyDesc,

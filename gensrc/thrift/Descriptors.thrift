@@ -154,6 +154,8 @@ struct TOlapTablePartition {
     6: optional list<Exprs.TExprNode> start_keys
     7: optional list<Exprs.TExprNode> end_keys
     8: optional list<list<Exprs.TExprNode>> in_keys
+    // only used in List Partition
+    9: optional bool is_default_partition;
 }
 
 struct TOlapTablePartitionParam {

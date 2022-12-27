@@ -29,6 +29,7 @@ public class ListPartitionItem extends PartitionItem {
     public static ListPartitionItem DUMMY_ITEM = new ListPartitionItem(Lists.newArrayList());
 
     private final List<PartitionKey> partitionKeys;
+    private boolean isDefaultPatition = false;
 
     public ListPartitionItem(List<PartitionKey> partitionKeys) {
         this.partitionKeys = partitionKeys;
@@ -46,6 +47,14 @@ public class ListPartitionItem extends PartitionItem {
 
     public List<PartitionKey> getItems() {
         return partitionKeys;
+    }
+
+    public boolean isDefaultPatition() {
+        return isDefaultPatition;
+    }
+
+    public void setDefaultPartition(boolean isDefaultPatition) {
+        this.isDefaultPatition = isDefaultPatition;
     }
 
     @Override
