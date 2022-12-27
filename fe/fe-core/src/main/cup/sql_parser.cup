@@ -3035,7 +3035,8 @@ partition_key_desc ::=
 list_partition_key_desc ::=
     /* empty */
     {:
-        List<List<PartitionValue>> keys = new ArrayList<List<PartitionValue>>();
+        ArrayList<List<PartitionValue>> keys = new ArrayList();
+        keys.add(new ArrayList());
         RESULT = PartitionKeyDesc.createIn(keys);
     :}
     | LPAREN list_partition_values_list:keys RPAREN
