@@ -40,17 +40,14 @@ suite("test_list_default_partition") {
     sql """insert into list_default_par values (11,1,1,1,24453.325,1,1)"""
     qt_sql """select * from list_default_par"""
 
-    List<List<Object>> result2  = sql "show partitions from list_default_par"
-    logger.info("${result2}")
-    assertEquals(result2.size(), 3)
+    List<List<Object>> result1  = sql "show partitions from list_default_par"
+    logger.info("${result1}")
+    assertEquals(result1.size(), 3)
 
     // alter table create one more default partition
-    try {
+    test {
         sql """alter table list_default_par add partition p5"""
-    } catch {
-
-    } finally {
-
+        exception "errCode = 2, detailMessage = errCode = 2, detailMessage = Duplicate partition name p5"
     }
 
     sql """alter table list_default_par drop partition p3"""
@@ -71,24 +68,34 @@ suite("test_list_default_partition") {
         AGGREGATE KEY(k1,k2,k3,k4,k5)
         PARTITION BY LIST(k1) ( 
             PARTITION p1 VALUES IN ("1","2","3","4"), 
-            PARTITION p2 VALUES IN ("5","6","7","8"), 
-            PARTITION p3 ) 
+            PARTITION p2 VALUES IN ("5","6","7","8") 
+        ) 
         DISTRIBUTED BY HASH(k1) BUCKETS 5 properties("replication_num" = "1")
         """
     // insert value which is not allowed in existing partitions
-    try {
-
-    } catch {
-
-    } finally {
-
+    test {
+        sql """insert into list_default_par values (10,1,1,1,24453.325,1,1)"""
+        exception """ERROR 5025 (HY000): Insert has filtered data in strict mode"""
     }
 
     // alter table add default partition
+    sql """alter table list_default_par add partition p3"""
 
     // insert the formerly disallowed value
+    sql """insert into list_default_par values (10,1,1,1,24453.325,1,1)"""
+
+    qt_sql """select * from list_default_par"""
+    qt_sql """select * from list_default_par partition p1"""
+    qt_sql """select * from list_default_par partition p3"""
 
     // drop the default partition
+    sql """alter table list_default_par drop partition p3"""
+    qt_sql """select * from list_default_par"""
 
     // insert value which is not allowed in existing partitions
+    test {
+        sql """insert into list_default_par values (10,1,1,1,24453.325,1,1)"""
+        exception """ERROR 5025 (HY000): Insert has filtered data in strict mode"""
+    }
+    qt_sql """select * from list_default_par"""
 }
