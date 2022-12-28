@@ -576,17 +576,17 @@ bool VOlapTablePartitionParam::find_partition(BlockRow* block_row,
                                               const VOlapTablePartition** partition) const {
     auto it = _is_in_partition ? _partitions_map->find(block_row)
                                : _partitions_map->upper_bound(block_row);
-    if (it == _partitions_map->end() && !_is_in_partition) {
-        return false;
-    }
     if (_is_in_partition) {
+        if (it != _partitions_map->end()) {
+            *partition = it->second;
+            return true;
+        }
         if (_default_partition != nullptr) {
             *partition = _default_partition;
             return true;
         }
-        return false;
     }
-    if (_part_contains(it->second, block_row)) {
+    if (it != _partitions_map->end() && _part_contains(it->second, block_row)) {
         *partition = it->second;
         return true;
     }
