@@ -83,9 +83,7 @@ public class ListPartitionInfo extends PartitionInfo {
                             + partitionKeyDesc.toSql() + "] has duplicate item [" + partitionKey.toSql() + "].");
                 }
                 partitionKeys.add(partitionKey);
-            }
-            if (partitionKeyDesc.getInValues().size() == 1 && partitionKeyDesc.getInValues().get(0).isEmpty()) {
-                isDefaultListPartition = true;
+                isDefaultListPartition = partitionKey.isDefaultListPartitionKey();
             }
         } catch (AnalysisException e) {
             throw new DdlException("Invalid list value format: " + e.getMessage());

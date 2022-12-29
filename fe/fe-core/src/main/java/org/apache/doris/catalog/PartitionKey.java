@@ -47,11 +47,20 @@ public class PartitionKey implements Comparable<PartitionKey>, Writable {
     private static final Logger LOG = LogManager.getLogger(PartitionKey.class);
     private List<LiteralExpr> keys;
     private List<PrimitiveType> types;
+    private boolean isDefaultListPartitionKey = false;
 
     // constructor for partition prune
     public PartitionKey() {
         keys = Lists.newArrayList();
         types = Lists.newArrayList();
+    }
+
+    public void setDefaultListPartition(boolean isDefaultListPartitionKey) {
+        this.isDefaultListPartitionKey = isDefaultListPartitionKey;
+    }
+
+    public boolean isDefaultListPartitionKey() {
+        return isDefaultListPartitionKey;
     }
 
     // Factory methods
@@ -124,6 +133,7 @@ public class PartitionKey implements Comparable<PartitionKey>, Writable {
                 partitionKey.keys.add(LiteralExpr.createInfinity(types.get(i), false));
                 partitionKey.types.add(types.get(i).getPrimitiveType());
             }
+            partitionKey.setDefaultListPartition(true);
         }
 
         Preconditions.checkState(partitionKey.keys.size() == types.size());
