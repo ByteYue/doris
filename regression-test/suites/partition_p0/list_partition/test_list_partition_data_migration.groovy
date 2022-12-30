@@ -15,10 +15,10 @@
 // specific language governing permissions and limitations
 // under the License.
 
-suite("test_list_default_partition") {
-    sql "drop table if exists list_default_par"
+suite("test_list_partition_data_migration") {
+    sql "drop table if exists list_par_data_migration"
     sql """
-        CREATE TABLE IF NOT EXISTS list_default_par ( 
+        CREATE TABLE IF NOT EXISTS list_par_data_migration ( 
             k1 tinyint NOT NULL, 
             k2 smallint NOT NULL, 
             k3 int NOT NULL, 
@@ -34,30 +34,34 @@ suite("test_list_default_partition") {
         DISTRIBUTED BY HASH(k1) BUCKETS 5 properties("replication_num" = "1")
         """
 
-    sql """insert into list_default_par values (1,1,1,1,24453.325,1,1)"""
-    // the following two rows should be inserted into default partition successfully
-    sql """insert into list_default_par values (10,1,1,1,24453.325,1,1)"""
-    sql """insert into list_default_par values (11,1,1,1,24453.325,1,1)"""
-    qt_sql """select * from list_default_par"""
+    sql """insert into list_par_data_migration values (1,1,1,1,24453.325,1,1)"""
+    sql """insert into list_par_data_migration values (10,1,1,1,24453.325,1,1)"""
+    sql """insert into list_par_data_migration values (11,1,1,1,24453.325,1,1)"""
+    qt_sql """select * from list_par_data_migration"""
 
-    List<List<Object>> result1  = sql "show partitions from list_default_par"
+    List<List<Object>> result1  = sql "show partitions from list_par_data_migration"
     logger.info("${result1}")
     assertEquals(result1.size(), 3)
 
     // alter table create one more default partition
     test {
-        sql """alter table list_default_par add partition p5"""
+        sql """alter table list_par_data_migration add partition p5"""
         exception "errCode = 2, detailMessage = errCode = 2, detailMessage = Duplicate partition name p5"
     }
 
-    sql """alter table list_default_par drop partition p3"""
+    sql """alter table list_par_data_migration add partition p4 values in ("10")"""
+    sql """insert into list_par_data_migration values (10,1,1,1,24453.325,1,1)"""
+    qt_sql """select * from list_par_data_migration"""
+    qt_sql """select count(*) from list_par_data_migration partition p4"""
 
-    sql "drop table list_default_par"
+    sql """alter table list_par_data_migration drop partition p3"""
+
+    sql "drop table list_par_data_migration"
 
 
     // create one table without default partition
     sql """
-        CREATE TABLE IF NOT EXISTS list_default_par ( 
+        CREATE TABLE IF NOT EXISTS list_par_data_migration ( 
             k1 tinyint NOT NULL, 
             k2 smallint NOT NULL, 
             k3 int NOT NULL, 
@@ -74,28 +78,28 @@ suite("test_list_default_partition") {
         """
     // insert value which is not allowed in existing partitions
     test {
-        sql """insert into list_default_par values (10,1,1,1,24453.325,1,1)"""
+        sql """insert into list_par_data_migration values (10,1,1,1,24453.325,1,1)"""
         exception """ERROR 5025 (HY000): Insert has filtered data in strict mode"""
     }
 
     // alter table add default partition
-    sql """alter table list_default_par add partition p3"""
+    sql """alter table list_par_data_migration add partition p3"""
 
     // insert the formerly disallowed value
-    sql """insert into list_default_par values (10,1,1,1,24453.325,1,1)"""
+    sql """insert into list_par_data_migration values (10,1,1,1,24453.325,1,1)"""
 
-    qt_sql """select * from list_default_par"""
-    qt_sql """select * from list_default_par partition p1"""
-    qt_sql """select * from list_default_par partition p3"""
+    qt_sql """select * from list_par_data_migration"""
+    qt_sql """select * from list_par_data_migration partition p1"""
+    qt_sql """select * from list_par_data_migration partition p3"""
 
     // drop the default partition
-    sql """alter table list_default_par drop partition p3"""
-    qt_sql """select * from list_default_par"""
+    sql """alter table list_par_data_migration drop partition p3"""
+    qt_sql """select * from list_par_data_migration"""
 
     // insert value which is not allowed in existing partitions
     test {
-        sql """insert into list_default_par values (10,1,1,1,24453.325,1,1)"""
+        sql """insert into list_par_data_migration values (10,1,1,1,24453.325,1,1)"""
         exception """ERROR 5025 (HY000): Insert has filtered data in strict mode"""
     }
-    qt_sql """select * from list_default_par"""
+    qt_sql """select * from list_par_data_migration"""
 }

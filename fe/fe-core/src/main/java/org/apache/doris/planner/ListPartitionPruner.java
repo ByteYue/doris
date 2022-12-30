@@ -20,6 +20,7 @@ package org.apache.doris.planner;
 import org.apache.doris.analysis.InPredicate;
 import org.apache.doris.analysis.LiteralExpr;
 import org.apache.doris.catalog.Column;
+import org.apache.doris.catalog.ListPartitionItem;
 import org.apache.doris.catalog.PartitionItem;
 import org.apache.doris.catalog.PartitionKey;
 import org.apache.doris.catalog.Type;
@@ -41,6 +42,7 @@ import java.util.Set;
 public class ListPartitionPruner implements PartitionPruner {
 
     private Map<Long, PartitionItem> partitionListMap;
+    private Map.Entry<Long, PartitionItem> defaultPartition;
     private List<Column>                       partitionColumns;
     private Map<String, PartitionColumnFilter> partitionColumnFilters;
 
@@ -50,6 +52,10 @@ public class ListPartitionPruner implements PartitionPruner {
         partitionListMap = listMap;
         partitionColumns = columns;
         partitionColumnFilters = filters;
+        defaultPartition = partitionListMap.entrySet().stream()
+                                .filter(entry -> ((ListPartitionItem) entry.getValue()).isDefaultPatition())
+                                .findAny()
+                                .orElse(null);
     }
 
     private Collection<Long> pruneListMap(Map<Long, PartitionItem> listMap,
@@ -57,6 +63,10 @@ public class ListPartitionPruner implements PartitionPruner {
                                           int columnId) {
         Set<Long> resultSet = Sets.newHashSet();
         for (Map.Entry<Long, PartitionItem> entry : listMap.entrySet()) {
+            if (((ListPartitionItem) entry.getValue()).isDefaultPatition()) {
+                resultSet.add(entry.getKey());
+                continue;
+            }
             List<PartitionKey> partitionKeys = entry.getValue().getItems();
             for (PartitionKey partitionKey : partitionKeys) {
                 LiteralExpr expr = partitionKey.getKeys().get(columnId);
@@ -247,6 +257,10 @@ public class ListPartitionPruner implements PartitionPruner {
     public Collection<Long> prune() throws AnalysisException {
         PartitionKey minKey = new PartitionKey();
         PartitionKey maxKey = new PartitionKey();
-        return prune(partitionListMap, 0, minKey, maxKey, 1);
+        Collection<Long> result =  prune(partitionListMap, 0, minKey, maxKey, 1);
+        if (defaultPartition != null) {
+            result.add(defaultPartition.getKey());
+        }
+        return result;
     }
 }

@@ -76,7 +76,12 @@ public abstract class PartitionPrunerV2Base implements PartitionPruner {
         }
 
         if (partitionColumns.size() == 1) {
-            return pruneSingleColumnPartition(columnToFilters);
+            Collection<Long> result = pruneSingleColumnPartition(columnToFilters);
+            if (this instanceof ListPartitionPrunerV2) {
+                ListPartitionPrunerV2 pruner = (ListPartitionPrunerV2) this;
+                result = pruner.handleDefaultPartition(result);
+            }
+            return result;
         } else if (partitionColumns.size() > 1) {
             return pruneMultipleColumnPartition(columnToFilters);
         } else {
@@ -119,7 +124,7 @@ public abstract class PartitionPrunerV2Base implements PartitionPruner {
         FinalFilters finalFilters = columnToFilters.get(partitionColumns.get(0));
         switch (finalFilters.type) {
             case CONSTANT_FALSE_FILTERS:
-                return Collections.emptyList();
+                return Collections.emptySet();
             case HAVE_FILTERS:
                 genSingleColumnRangeMap();
                 Preconditions.checkNotNull(singleColumnRangeMap);
