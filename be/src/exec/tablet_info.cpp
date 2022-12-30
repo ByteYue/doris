@@ -577,20 +577,13 @@ bool VOlapTablePartitionParam::find_partition(BlockRow* block_row,
     auto it = _is_in_partition ? _partitions_map->find(block_row)
                                : _partitions_map->upper_bound(block_row);
     if (_is_in_partition) {
-        if (it != _partitions_map->end()) {
-            *partition = it->second;
-            return true;
-        }
-        if (_default_partition != nullptr) {
-            *partition = _default_partition;
-            return true;
-        }
+        // default partition could store all data which can't meet the prior contraint
+        *partition = (it != _partitions_map->end()) ? it->second : _default_partition;
     }
     if (it != _partitions_map->end() && _part_contains(it->second, block_row)) {
         *partition = it->second;
-        return true;
     }
-    return false;
+    return (*partition == nullptr);
 }
 
 uint32_t VOlapTablePartitionParam::find_tablet(BlockRow* block_row,
