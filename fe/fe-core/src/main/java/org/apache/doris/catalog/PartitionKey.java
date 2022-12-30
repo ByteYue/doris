@@ -120,6 +120,7 @@ public class PartitionKey implements Comparable<PartitionKey>, Writable {
         //     PARTITION p7
         // )
         //
+        // ListPartitionInfo::createAndCheckPartitionItem has checked
         Preconditions.checkArgument(values.size() <= types.size(),
                 "in value size[" + values.size() + "] is not less than partition column size[" + types.size() + "].");
 
@@ -267,7 +268,11 @@ public class PartitionKey implements Comparable<PartitionKey>, Writable {
         builder.append("]; ");
 
         builder.append("keys: [");
-        builder.append(toString(keys));
+        if (isDefaultListPartitionKey()) {
+            builder.append("default key");
+        } else {
+            builder.append(toString(keys));
+        }
         builder.append("]; ");
 
         return builder.toString();

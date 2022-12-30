@@ -63,7 +63,7 @@ public class ListPartitionPruner implements PartitionPruner {
                                           int columnId) {
         Set<Long> resultSet = Sets.newHashSet();
         for (Map.Entry<Long, PartitionItem> entry : listMap.entrySet()) {
-            if (((ListPartitionItem) entry.getValue()).isDefaultPatition()) {
+            if (entry.getValue().isDefaultPatition()) {
                 resultSet.add(entry.getKey());
                 continue;
             }

@@ -18,7 +18,6 @@
 package org.apache.doris.planner;
 
 import org.apache.doris.catalog.Column;
-import org.apache.doris.catalog.ListPartitionItem;
 import org.apache.doris.catalog.PartitionItem;
 import org.apache.doris.catalog.PartitionKey;
 import org.apache.doris.common.AnalysisException;
@@ -39,7 +38,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -54,7 +52,6 @@ public class ListPartitionPrunerV2 extends PartitionPrunerV2Base {
     // `uidToPartitionRange` is only used for multiple columns partition.
     private Map<UniqueId, Range<PartitionKey>> uidToPartitionRange;
     private Map<Range<PartitionKey>, UniqueId> rangeToId;
-    private Map.Entry<Long, PartitionItem> defaultPartition;
 
     public ListPartitionPrunerV2(Map<Long, PartitionItem> idToPartitionItem,
             List<Column> partitionColumns,
@@ -65,7 +62,6 @@ public class ListPartitionPrunerV2 extends PartitionPrunerV2Base {
             this.uidToPartitionRange = genUidToPartitionRange(idToPartitionItem);
             this.rangeToId = genRangeToId(uidToPartitionRange);
         }
-        findDefaultPartition(idToPartitionItem);
     }
 
     // Pass uidToPartitionRange and rangeToId from outside
@@ -78,24 +74,6 @@ public class ListPartitionPrunerV2 extends PartitionPrunerV2Base {
         super(idToPartitionItem, partitionColumns, columnNameToRange, singleColumnRangeMap);
         this.uidToPartitionRange = uidToPartitionRange;
         this.rangeToId = rangeToId;
-        findDefaultPartition(idToPartitionItem);
-    }
-
-    private void findDefaultPartition(Map<Long, PartitionItem> idToPartitionItem) {
-        this.defaultPartition = idToPartitionItem.entrySet().stream()
-                                .filter(entry -> ((ListPartitionItem) entry.getValue()).isDefaultPatition())
-                                .findAny()
-                                .orElse(null);
-    }
-
-    public Collection<Long> handleDefaultPartition(Collection<Long> result) {
-        LOG.info("result type info {}", result.getClass().toString());
-        if (this.defaultPartition != null) {
-            Set<Long> r = result.stream().collect(Collectors.toSet());
-            r.add(this.defaultPartition.getKey());
-            return r;
-        }
-        return result;
     }
 
     public static Map<UniqueId, Range<PartitionKey>> genUidToPartitionRange(
@@ -163,11 +141,7 @@ public class ListPartitionPrunerV2 extends PartitionPrunerV2Base {
             Map<Column, FinalFilters> columnToFilters) throws AnalysisException {
         Preconditions.checkNotNull(uidToPartitionRange);
         Preconditions.checkNotNull(rangeToId);
-        Collection<Long> result = doPruneMultiple(columnToFilters, rangeToId, 0);
-        if (defaultPartition != null) {
-            result.add(defaultPartition.getKey());
-        }
-        return result;
+        return doPruneMultiple(columnToFilters, rangeToId, 0);
     }
 
     public static Map<Range<PartitionKey>, UniqueId> genRangeToId(
