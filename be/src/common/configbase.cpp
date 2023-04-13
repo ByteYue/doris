@@ -277,7 +277,7 @@ Status Properties::dump(const std::string& conffile) {
         RETURN_IF_ERROR(file_writer->append("\n"));
     }
 
-    return file_writer->close();
+    return file_writer->close().get();
 }
 
 template <typename T>

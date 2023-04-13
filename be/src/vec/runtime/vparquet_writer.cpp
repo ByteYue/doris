@@ -69,7 +69,7 @@ arrow::Status ParquetOutputStream::Close() {
     if (_is_closed) {
         return arrow::Status::OK();
     }
-    Status st = _file_writer->close();
+    Status st = _file_writer->close().get();
     if (!st.ok()) {
         LOG(WARNING) << "close parquet output stream failed: " << st;
         return arrow::Status::IOError(st.to_string());

@@ -146,7 +146,7 @@ Status FileHeader<MessageType, ExtraType>::serialize() {
             {(const uint8_t*)&_extra_fixed_header, sizeof(_extra_fixed_header)}));
     RETURN_IF_ERROR(file_writer->write_at(_fixed_file_header_size + sizeof(_extra_fixed_header),
                                           {_proto_string}));
-    return file_writer->close();
+    return file_writer->close().get();
 }
 
 template <typename MessageType, typename ExtraType>

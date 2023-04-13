@@ -39,26 +39,29 @@ HdfsFileWriter::~HdfsFileWriter() {
     CHECK(!_opened || _closed) << "open: " << _opened << ", closed: " << _closed;
 }
 
-Status HdfsFileWriter::close() {
-    if (_closed) {
+std::future<Status> HdfsFileWriter::close() {
+    return std::async(std::launch::async, [this]() {
+        if (_closed) {
+            return Status::OK();
+        }
+        _closed = true;
+        if (_hdfs_file == nullptr) {
+            return Status::OK();
+        }
+        int result = hdfsFlush(_hdfs_fs->_fs_handle->hdfs_fs, _hdfs_file);
+        if (result == -1) {
+            std::stringstream ss;
+            ss << "failed to flush hdfs file. "
+               << "(BE: " << BackendOptions::get_localhost() << ")"
+               << "namenode:" << _hdfs_fs->_namenode << " path:" << _path
+               << ", err: " << hdfs_error();
+            LOG(WARNING) << ss.str();
+            return Status::InternalError(ss.str());
+        }
+        hdfsCloseFile(_hdfs_fs->_fs_handle->hdfs_fs, _hdfs_file);
+        _hdfs_file = nullptr;
         return Status::OK();
-    }
-    _closed = true;
-    if (_hdfs_file == nullptr) {
-        return Status::OK();
-    }
-    int result = hdfsFlush(_hdfs_fs->_fs_handle->hdfs_fs, _hdfs_file);
-    if (result == -1) {
-        std::stringstream ss;
-        ss << "failed to flush hdfs file. "
-           << "(BE: " << BackendOptions::get_localhost() << ")"
-           << "namenode:" << _hdfs_fs->_namenode << " path:" << _path << ", err: " << hdfs_error();
-        LOG(WARNING) << ss.str();
-        return Status::InternalError(ss.str());
-    }
-    hdfsCloseFile(_hdfs_fs->_fs_handle->hdfs_fs, _hdfs_file);
-    _hdfs_file = nullptr;
-    return Status::OK();
+    });
 }
 
 Status HdfsFileWriter::abort() {
@@ -88,16 +91,6 @@ Status HdfsFileWriter::appendv(const Slice* data, size_t data_cnt) {
             p += written_bytes;
             _bytes_appended += written_bytes;
         }
-    }
-    return Status::OK();
-}
-
-// Call this method when there is no more data to write.
-// FIXME(cyx): Does not seem to be an appropriate interface for file system?
-Status HdfsFileWriter::finalize() {
-    DCHECK(!_closed);
-    if (_opened) {
-        RETURN_IF_ERROR(close());
     }
     return Status::OK();
 }

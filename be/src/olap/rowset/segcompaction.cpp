@@ -242,7 +242,7 @@ Status SegcompactionWorker::_do_compact_segments(SegCompactionCandidatesSharedPt
             _writer->flush_segment_writer_for_segcompaction(&writer, total_index_size, key_bounds));
 
     if (_file_writer != nullptr) {
-        _file_writer->close();
+        _file_writer->close().get();
     }
 
     RETURN_NOT_OK(_delete_original_segments(begin, end));

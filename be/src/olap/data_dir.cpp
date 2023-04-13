@@ -215,7 +215,7 @@ Status DataDir::_write_cluster_id_to_path(const std::string& path, int32_t clust
         io::FileWriterPtr file_writer;
         RETURN_IF_ERROR(io::global_local_filesystem()->create_file(path, &file_writer));
         RETURN_IF_ERROR(file_writer->append(cluster_id_ss.str()));
-        RETURN_IF_ERROR(file_writer->close());
+        RETURN_IF_ERROR(file_writer->close().get());
     }
     return Status::OK();
 }

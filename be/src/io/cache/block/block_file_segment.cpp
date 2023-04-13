@@ -210,7 +210,7 @@ Status FileBlock::set_downloaded(std::lock_guard<std::mutex>& /* segment_lock */
     }
 
     if (_cache_writer) {
-        RETURN_IF_ERROR(_cache_writer->close());
+        RETURN_IF_ERROR(_cache_writer->close().get());
         _cache_writer.reset();
     }
 

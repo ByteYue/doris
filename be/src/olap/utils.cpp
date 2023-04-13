@@ -474,7 +474,7 @@ Status read_write_test_file(const string& test_file_path) {
     io::FileWriterPtr file_writer;
     RETURN_IF_ERROR(io::global_local_filesystem()->create_file(test_file_path, &file_writer));
     RETURN_IF_ERROR(file_writer->append({write_buff.get(), TEST_FILE_BUF_SIZE}));
-    RETURN_IF_ERROR(file_writer->close());
+    RETURN_IF_ERROR(file_writer->close().get());
     // read file
     io::FileReaderSPtr file_reader;
     RETURN_IF_ERROR(io::global_local_filesystem()->open_file(test_file_path, &file_reader));

@@ -772,7 +772,7 @@ Status LRUFileCache::write_file_cache_version() const {
         FileWriterPtr version_writer;
         RETURN_IF_ERROR(global_local_filesystem()->create_file(version_path, &version_writer));
         RETURN_IF_ERROR(version_writer->append(version));
-        return version_writer->close();
+        return version_writer->close().get();
     }
     return Status::OK();
 }

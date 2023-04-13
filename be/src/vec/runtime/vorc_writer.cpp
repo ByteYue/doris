@@ -39,7 +39,7 @@ VOrcOutputStream::~VOrcOutputStream() {
 
 void VOrcOutputStream::close() {
     if (!_is_closed) {
-        Status st = _file_writer->close();
+        Status st = _file_writer->close().get();
         if (!st.ok()) {
             LOG(WARNING) << "close orc output stream failed: " << st;
         }

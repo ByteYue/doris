@@ -499,13 +499,14 @@ RowsetSharedPtr BetaRowsetWriter::manual_build(const RowsetMetaSharedPtr& spec_r
 
 RowsetSharedPtr BetaRowsetWriter::build() {
     // TODO(lingbin): move to more better place, or in a CreateBlockBatch?
+    std::vector<std::pair<std::future<Status>, std::function<void(Status)>>> writer_futures(
+            _file_writers.size());
     for (auto& file_writer : _file_writers) {
-        Status status = file_writer->close();
-        if (!status.ok()) {
-            LOG(WARNING) << "failed to close file writer, path=" << file_writer->path()
-                         << " res=" << status;
-            return nullptr;
-        }
+        writer_futures.emplace_back(file_writer->close(), [p = file_writer->path()](Status status) {
+            if (!status.ok()) {
+                LOG(WARNING) << "failed to close file writer, path=" << p << " res=" << status;
+            }
+        });
     }
     Status status;
     status = wait_flying_segcompaction();
@@ -559,6 +560,13 @@ RowsetSharedPtr BetaRowsetWriter::build() {
     if (!status.ok()) {
         LOG(WARNING) << "rowset init failed when build new rowset, res=" << status;
         return nullptr;
+    }
+    for (auto& [future, callback] : writer_futures) {
+        status = future.get();
+        if (!status.ok()) {
+            callback(status);
+            return nullptr;
+        }
     }
     _already_built = true;
     return rowset;

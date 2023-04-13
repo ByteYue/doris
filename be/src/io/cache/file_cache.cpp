@@ -71,19 +71,19 @@ Status FileCache::download_cache_to_local(const Path& cache_file, const Path& ca
     };
     auto st = func(file_writer.get());
     if (!st.ok()) {
-        WARN_IF_ERROR(file_writer->close(),
+        WARN_IF_ERROR(file_writer->close().get(),
                       fmt::format("Close local cache file failed: {}", cache_file.native()));
         return st;
     }
     RETURN_NOT_OK_STATUS_WITH_WARN(
-            file_writer->close(),
+            file_writer->close().get(),
             fmt::format("Close local cache file failed: {}", cache_file.native()));
     io::FileWriterPtr done_file_writer;
     RETURN_NOT_OK_STATUS_WITH_WARN(
             io::global_local_filesystem()->create_file(cache_done_file, &done_file_writer),
             fmt::format("Create local done file failed: {}", cache_done_file.native()));
     RETURN_NOT_OK_STATUS_WITH_WARN(
-            done_file_writer->close(),
+            done_file_writer->close().get(),
             fmt::format("Close local done file failed: {}", cache_done_file.native()));
     return Status::OK();
 }

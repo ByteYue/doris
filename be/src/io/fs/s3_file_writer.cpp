@@ -70,8 +70,8 @@ S3FileWriter::~S3FileWriter() {
     CHECK(!_opened || _closed) << "open: " << _opened << ", closed: " << _closed;
 }
 
-Status S3FileWriter::close() {
-    return _close();
+std::future<Status> S3FileWriter::close() {
+    return std::async(std::launch::async, [this]() { return _close(); });
 }
 
 Status S3FileWriter::abort() {
@@ -109,14 +109,6 @@ Status S3FileWriter::appendv(const Slice* data, size_t data_cnt) {
     }
     if (_stream_ptr->str().size() >= MAX_SIZE_EACH_PART) {
         RETURN_IF_ERROR(_upload_part());
-    }
-    return Status::OK();
-}
-
-Status S3FileWriter::finalize() {
-    DCHECK(!_closed);
-    if (_opened) {
-        _close();
     }
     return Status::OK();
 }

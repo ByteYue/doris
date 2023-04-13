@@ -84,7 +84,7 @@ Status VFileResultWriter::_create_success_file() {
             _file_writer_impl));
     // must write somthing because s3 file writer can not writer empty file
     RETURN_IF_ERROR(_file_writer_impl->append({"success"}));
-    return _file_writer_impl->close();
+    return _file_writer_impl->close().get();
 }
 
 Status VFileResultWriter::_get_success_file_name(std::string* file_name) {

@@ -21,6 +21,7 @@
 #include <sys/uio.h>
 
 #include <cerrno>
+#include <future>
 
 #include "common/compiler_util.h"
 #include "common/status.h"
@@ -73,8 +74,8 @@ LocalFileWriter::~LocalFileWriter() {
     CHECK(!_opened || _closed) << "open: " << _opened << ", closed: " << _closed;
 }
 
-Status LocalFileWriter::close() {
-    return _close(true);
+std::future<Status> LocalFileWriter::close() {
+    return std::async(std::launch::async, [this]() { return _close(true); });
 }
 
 Status LocalFileWriter::abort() {
@@ -154,8 +155,12 @@ Status LocalFileWriter::write_at(size_t offset, const Slice& data) {
     return Status::OK();
 }
 
-Status LocalFileWriter::finalize() {
-    DCHECK(!_closed);
+Status LocalFileWriter::_close(bool sync) {
+    if (_closed) {
+        return Status::OK();
+    }
+    _closed = true;
+
     if (_dirty) {
 #if defined(__linux__)
         int flags = SYNC_FILE_RANGE_WRITE;
@@ -164,14 +169,7 @@ Status LocalFileWriter::finalize() {
         }
 #endif
     }
-    return Status::OK();
-}
 
-Status LocalFileWriter::_close(bool sync) {
-    if (_closed) {
-        return Status::OK();
-    }
-    _closed = true;
     if (sync && _dirty) {
 #ifdef __APPLE__
         if (fcntl(_fd, F_FULLFSYNC) < 0) {

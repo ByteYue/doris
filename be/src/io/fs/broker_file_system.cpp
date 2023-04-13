@@ -355,7 +355,7 @@ Status BrokerFileSystem::upload_impl(const Path& local_file, const Path& remote_
     }
 
     // close manually, because we need to check its close status
-    RETURN_IF_ERROR(broker_writer->close());
+    RETURN_IF_ERROR(broker_writer->close().get());
     LOG(INFO) << "finished to write file via broker. file: " << local_file
               << ", length: " << file_len;
     return Status::OK();
@@ -374,7 +374,7 @@ Status BrokerFileSystem::direct_upload_impl(const Path& remote_file, const std::
     FileWriterPtr broker_writer = nullptr;
     RETURN_IF_ERROR(create_file_impl(remote_file, &broker_writer));
     RETURN_IF_ERROR(broker_writer->append({content}));
-    return broker_writer->close();
+    return broker_writer->close().get();
 }
 
 Status BrokerFileSystem::upload_with_checksum_impl(const Path& local_file, const Path& remote_file,

@@ -374,7 +374,7 @@ Status TabletMeta::save_as_json(const string& file_path, DataDir* dir) {
     io::FileWriterPtr file_writer;
     RETURN_IF_ERROR(dir->fs()->create_file(file_path, &file_writer));
     RETURN_IF_ERROR(file_writer->append(json_meta));
-    RETURN_IF_ERROR(file_writer->close());
+    RETURN_IF_ERROR(file_writer->close().get());
     return Status::OK();
 }
 

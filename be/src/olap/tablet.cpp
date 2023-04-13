@@ -1932,7 +1932,7 @@ Status Tablet::write_cooldown_meta() {
     RETURN_IF_ERROR(fs->create_file(remote_meta_path, &tablet_meta_writer));
     auto val = tablet_meta_pb.SerializeAsString();
     RETURN_IF_ERROR(tablet_meta_writer->append({val.data(), val.size()}));
-    return tablet_meta_writer->close();
+    return tablet_meta_writer->close().get();
 }
 
 // hold SHARED `cooldown_conf_lock`

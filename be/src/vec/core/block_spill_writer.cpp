@@ -59,7 +59,7 @@ Status BlockSpillWriter::close() {
         return status;
     }
 
-    RETURN_IF_ERROR(file_writer_->close());
+    RETURN_IF_ERROR(file_writer_->close().get());
     file_writer_.reset();
     return Status::OK();
 }
