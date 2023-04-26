@@ -241,6 +241,19 @@ Status DeltaWriter::write(const vectorized::Block* block, const std::vector<int>
 
 Status DeltaWriter::_flush_memtable_async() {
     _merged_rows += _mem_table->merged_rows();
+    // if the rowset num is larger than max_tablet_version_num / 2, it might result in
+    // -235 if we keep appending new data, so we'd better sleep for a short time for compaction
+    // to be done. Notice we should not sleep too long or we might get one timeout rpc
+    // we use one exponent backoff algorithm to control the sleep time
+    for (int32_t failed_time = 100, waiting_time = 0;
+         _tablet->version_count() > (config::max_tablet_version_num / 2) &&
+         std::min(failed_time, waiting_time) < config::min_load_rpc_timeout_ms / 2;
+         failed_time *= 2) {
+        // because this function is invoked in bthread, we should not use any function
+        // that would block the pthread
+        bthread_usleep(failed_time * 100);
+        waiting_time += failed_time;
+    }
     return _flush_token->submit(std::move(_mem_table));
 }
 
