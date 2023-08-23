@@ -41,6 +41,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -100,6 +101,23 @@ public abstract class Policy implements Writable, GsonPostProcessable {
         this.type = type;
         this.policyName = policyName;
         this.version = 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return policyName.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        Policy other = (Policy) obj;
+        return policyName.equals(other.policyName);
     }
 
     /**

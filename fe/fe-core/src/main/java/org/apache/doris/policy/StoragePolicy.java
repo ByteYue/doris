@@ -140,6 +140,23 @@ public class StoragePolicy extends Policy {
         return storagePolicy;
     }
 
+    @Override
+    public int hashCode() {
+        return policyName.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        Policy other = (Policy) obj;
+        return policyName.equals(other.policyName);
+    }
+
     /**
      * Init props for storage policy.
      *

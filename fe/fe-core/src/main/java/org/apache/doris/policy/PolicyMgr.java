@@ -439,6 +439,7 @@ public class PolicyMgr implements Writable {
 
     /**
      * The merge policy cache needs to be regenerated after the update.
+     * Only used for row policy
      **/
     private void updateTablePolicies() {
         readLock();

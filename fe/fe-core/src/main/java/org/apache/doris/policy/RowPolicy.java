@@ -149,6 +149,22 @@ public class RowPolicy extends Policy {
         }
     }
 
+    public int hashCode() {
+        return policyName.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        Policy other = (Policy) obj;
+        return policyName.equals(other.policyName);
+    }
+
     @Override
     public RowPolicy clone() {
         return new RowPolicy(this.id, this.policyName, this.dbId, this.user, this.roleName, this.originStmt,
