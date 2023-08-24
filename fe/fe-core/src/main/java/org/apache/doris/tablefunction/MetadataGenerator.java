@@ -276,7 +276,7 @@ public class MetadataGenerator {
     }
 
     private static TFetchSchemaTableDataResult storagePoliciesMetadataResult(TMetadataTableRequestParams params) {
-        if (!params.isStoragePolicyMetadataParam()) {
+        if (!params.isSetStoragePolicyParams()) {
             return errorResult("storage policy name metadata param is not set.");
         }
 

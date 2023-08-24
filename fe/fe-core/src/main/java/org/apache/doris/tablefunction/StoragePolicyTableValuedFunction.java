@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 package org.apache.doris.tablefunction;
 
 import org.apache.doris.catalog.Column;
@@ -6,6 +23,7 @@ import org.apache.doris.catalog.ScalarType;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.thrift.TMetaScanRange;
 import org.apache.doris.thrift.TMetadataType;
+import org.apache.doris.thrift.TStoragePolicyMetadataParam;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -20,7 +38,7 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
     private static final ImmutableList<Column> SCHEMA = ImmutableList.of(
             new Column("StoragePolicyName", ScalarType.createStringType()),
             new Column("PartitionName", ScalarType.createStringType()),
-            new Column("PartitionID", ScalarType.createType(PrimitiveType.INT));
+            new Column("PartitionID", ScalarType.createType(PrimitiveType.INT)));
 
     private static final ImmutableMap<String, Integer> COLUMN_TO_INDEX;
 
@@ -41,12 +59,14 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
     public StoragePolicyTableValuedFunction(Map<String, String> params) throws
             org.apache.doris.nereids.exceptions.AnalysisException {
         if (params.size() != 1) {
-            throw new org.apache.doris.nereids.exceptions.AnalysisException("storage policy table-valued-function needs at least one param");
+            throw new org.apache.doris.nereids
+                .exceptions.AnalysisException("storage policy table-valued-function needs at least one param");
         }
         Optional<Map.Entry<String, String>> opt = params.entrySet().stream()
                     .filter(entry -> entry.getKey().toLowerCase().equals("storage_policy")).findAny();
         if (!opt.isPresent()) {
-            throw new org.apache.doris.nereids.exceptions.AnalysisException("storage policy table-valued-function needs at least one param");
+            throw new org.apache.doris.nereids
+                .exceptions.AnalysisException("storage policy table-valued-function needs at least one param");
         }
         storagePolicyName = opt.get().getValue();
     }
@@ -63,7 +83,7 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
 
     @Override
     public TMetadataType getMetadataType() {
-        return return TMetadataType.STORAGE_POLICY;;
+        return TMetadataType.STORAGE_POLICY;
     }
 
     @Override
@@ -72,7 +92,7 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
         metaScanRange.setMetadataType(TMetadataType.STORAGE_POLICY);
         TStoragePolicyMetadataParam storagePolicyMetadataParam = new TStoragePolicyMetadataParam();
         storagePolicyMetadataParam.setPolicyName(storagePolicyName);
-        metaScanRange.setFrontendsParams(storagePolicyMetadataParam);
+        metaScanRange.setStoragePolicyParams(storagePolicyMetadataParam);
         return metaScanRange;
     }
 }
