@@ -92,6 +92,9 @@ public class MetadataGenerator {
             case CATALOGS:
                 result = catalogsMetadataResult(params);
                 break;
+            case STORAGE_POLICY:
+                result = storagePoliciesMetadataResult(params);
+                break;
             default:
                 return errorResult("Metadata table params is not set.");
         }
@@ -252,6 +255,29 @@ public class MetadataGenerator {
     private static TFetchSchemaTableDataResult frontendsMetadataResult(TMetadataTableRequestParams params) {
         if (!params.isSetFrontendsMetadataParams()) {
             return errorResult("frontends metadata param is not set.");
+        }
+
+        TFetchSchemaTableDataResult result = new TFetchSchemaTableDataResult();
+
+        List<TRow> dataBatch = Lists.newArrayList();
+        List<List<String>> infos = Lists.newArrayList();
+        FrontendsProcNode.getFrontendsInfo(Env.getCurrentEnv(), infos);
+        for (List<String> info : infos) {
+            TRow trow = new TRow();
+            for (String item : info) {
+                trow.addToColumnValue(new TCell().setStringVal(item));
+            }
+            dataBatch.add(trow);
+        }
+
+        result.setDataBatch(dataBatch);
+        result.setStatus(new TStatus(TStatusCode.OK));
+        return result;
+    }
+
+    private static TFetchSchemaTableDataResult storagePoliciesMetadataResult(TMetadataTableRequestParams params) {
+        if (!params.isStoragePolicyMetadataParam()) {
+            return errorResult("storage policy name metadata param is not set.");
         }
 
         TFetchSchemaTableDataResult result = new TFetchSchemaTableDataResult();
