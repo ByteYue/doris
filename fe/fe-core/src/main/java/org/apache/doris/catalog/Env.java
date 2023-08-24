@@ -1414,6 +1414,7 @@ public class Env {
         }
 
         getPolicyMgr().createDefaultStoragePolicy();
+        getPolicyMgr().buildPolicyToPartitionMapAsync();
 
         // MUST set master ip before starting checkpoint thread.
         // because checkpoint thread need this info to select non-master FE to push image

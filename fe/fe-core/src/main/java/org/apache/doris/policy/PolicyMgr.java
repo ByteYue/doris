@@ -26,10 +26,12 @@ import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.Env;
 import org.apache.doris.catalog.OlapTable;
+import org.apache.doris.catalog.PartitionInfo;
 import org.apache.doris.catalog.Table;
 import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.DdlException;
+import org.apache.doris.common.Pair;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
@@ -71,7 +73,7 @@ public class PolicyMgr implements Writable {
     private ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 
     @SerializedName(value = "typeToPolicyMap")
-    private Map<PolicyTypeEnum, List<Policy>> typeToPolicyMap = Maps.newConcurrentMap();
+    private Map<PolicyTypeEnum, Set<Policy>> typeToPolicyMap = Maps.newConcurrentMap();
 
     // dbId -> tableId -> List<RowPolicy>
     private Map<Long, Map<Long, List<RowPolicy>>> tablePolicies = Maps.newConcurrentMap();
@@ -90,6 +92,34 @@ public class PolicyMgr implements Writable {
 
     private void readUnlock() {
         lock.readLock().unlock();
+    }
+
+    private Map<String, Set<Pair<Long, PartitionInfo>>> storagePolicyNameToPartitionId = Maps.newConcurrentMap();
+
+    // This function should be only called once, is there anything like C++'s callOnce in java?
+    public void buildPolicyToPartitionMapAsync() {
+        new Thread(() -> {
+            List<Database> dbs = Env.getCurrentEnv().getInternalCatalog().getDbs();
+            dbs.forEach(db -> {
+                db.getTables().forEach(t -> {
+                    if (!(t instanceof OlapTable)) {
+                        return;
+                    }
+                    OlapTable table = (OlapTable) t;
+                    PartitionInfo info = table.getPartitionInfo();
+                    Map<Long, String> idToPolicyMap = info.getIdToStoragePolicy();
+                    idToPolicyMap.entrySet().forEach(entry -> {
+                        if (entry.getValue().isEmpty()) {
+                            return;
+                        }
+                        // Would it be thread safe? TO be tested
+                        Set s = storagePolicyNameToPartitionId
+                                    .getOrDefault(entry.getValue(), Sets.newConcurrentHashSet());
+                        s.add(entry.getKey());
+                    });
+                });
+            });
+        }).start();
     }
 
     /**
@@ -176,8 +206,9 @@ public class PolicyMgr implements Writable {
     public boolean existPolicy(Policy checkedPolicy) {
         readLock();
         try {
-            List<Policy> policies = getPoliciesByType(checkedPolicy.getType());
-            return policies.stream().anyMatch(policy -> policy.matchPolicy(checkedPolicy));
+            Set<Policy> policies = getPoliciesByType(checkedPolicy.getType());
+            // return policies.stream().anyMatch(policy -> policy.matchPolicy(checkedPolicy));
+            return policies.contains(checkedPolicy);
         } finally {
             readUnlock();
         }
@@ -192,7 +223,7 @@ public class PolicyMgr implements Writable {
     private boolean existPolicy(DropPolicyLog checkedDropPolicy) {
         readLock();
         try {
-            List<Policy> policies = getPoliciesByType(checkedDropPolicy.getType());
+            Set<Policy> policies = getPoliciesByType(checkedDropPolicy.getType());
             return policies.stream().anyMatch(policy -> policy.matchPolicy(checkedDropPolicy));
         } finally {
             readUnlock();
@@ -208,13 +239,8 @@ public class PolicyMgr implements Writable {
     public Policy getPolicy(Policy checkedPolicy) {
         readLock();
         try {
-            List<Policy> policies = getPoliciesByType(checkedPolicy.getType());
-            for (Policy policy : policies) {
-                if (policy.matchPolicy(checkedPolicy)) {
-                    return policy;
-                }
-            }
-            return null;
+            Set<Policy> policies = getPoliciesByType(checkedPolicy.getType());
+            return policies.stream().filter(p -> p.equals(checkedPolicy)).findAny().orElse(null);
         } finally {
             readUnlock();
         }
@@ -229,11 +255,11 @@ public class PolicyMgr implements Writable {
         }
     }
 
-    private List<Policy> getPoliciesByType(PolicyTypeEnum policyType) {
+    private Set<Policy> getPoliciesByType(PolicyTypeEnum policyType) {
         if (typeToPolicyMap == null) {
-            return new ArrayList<>();
+            return new HashSet<>();
         }
-        return typeToPolicyMap.getOrDefault(policyType, new ArrayList<>());
+        return typeToPolicyMap.getOrDefault(policyType, new HashSet<>());
     }
 
     public void replayCreate(Policy policy) {
@@ -244,17 +270,25 @@ public class PolicyMgr implements Writable {
         LOG.info("replay create policy: {}", policy);
     }
 
+    public void updatePolicyNameToPartitionMap(String storagePolicy, Pair<Long, PartitionInfo> info, boolean delete) {
+        if (delete) {
+            storagePolicyNameToPartitionId.get(storagePolicy).remove(info);
+        } else {
+            storagePolicyNameToPartitionId.get(storagePolicy).add(info);
+        }
+    }
+
     private void unprotectedAdd(Policy policy) {
         if (policy == null) {
             return;
         }
-        List<Policy> dbPolicies = getPoliciesByType(policy.getType());
+        Set<Policy> dbPolicies = getPoliciesByType(policy.getType());
         dbPolicies.add(policy);
-        typeToPolicyMap.put(policy.getType(), dbPolicies);
-        if (PolicyTypeEnum.ROW == policy.getType()) {
-            addTablePolicies((RowPolicy) policy);
+        if (policy.getType() == PolicyTypeEnum.ROW) {
+            updateMergeTablePolicyMap();
+            return;
         }
-
+        storagePolicyNameToPartitionId.getOrDefault(policy, Sets.newConcurrentHashSet());
     }
 
     public void replayDrop(DropPolicyLog log) {
@@ -263,18 +297,19 @@ public class PolicyMgr implements Writable {
     }
 
     public void replayStoragePolicyAlter(StoragePolicy log) {
-        List<Policy> policies = getPoliciesByType(log.getType());
-        policies.removeIf(policy -> log.getPolicyName().equals(policy.getPolicyName()));
+        Set<Policy> policies = getPoliciesByType(log.getType());
+        policies.remove(log);
         policies.add(log);
-        typeToPolicyMap.put(log.getType(), policies);
+        // Alter storage policy would not change policy name
+        // so there is no need to update policyNameToPartitionMap
         LOG.info("replay alter policy log: {}", log);
     }
 
     private void unprotectedDrop(DropPolicyLog log) {
-        List<Policy> policies = getPoliciesByType(log.getType());
+        Set<Policy> policies = getPoliciesByType(log.getType());
         policies.removeIf(policy -> {
             if (policy.matchPolicy(log)) {
-                if (policy instanceof StoragePolicy) {
+                if (log.getType() == PolicyTypeEnum.STORAGE) {
                     ((StoragePolicy) policy).removeResourceReference();
                 }
                 if (policy instanceof RowPolicy) {
@@ -284,7 +319,11 @@ public class PolicyMgr implements Writable {
             }
             return false;
         });
-        typeToPolicyMap.put(log.getType(), policies);
+        if (log.getType() == PolicyTypeEnum.ROW) {
+            updateMergeTablePolicyMap();
+            return;
+        }
+        storagePolicyNameToPartitionId.remove(log.getPolicyName());
     }
 
     /**
@@ -447,7 +486,7 @@ public class PolicyMgr implements Writable {
             if (!typeToPolicyMap.containsKey(PolicyTypeEnum.ROW)) {
                 return;
             }
-            List<Policy> allPolicies = typeToPolicyMap.get(PolicyTypeEnum.ROW);
+            Set<Policy> allPolicies = typeToPolicyMap.get(PolicyTypeEnum.ROW);
             for (Policy policy : allPolicies) {
                 addTablePolicies((RowPolicy) policy);
             }
@@ -479,7 +518,7 @@ public class PolicyMgr implements Writable {
     public Optional<Policy> findPolicy(final String policyName, PolicyTypeEnum policyType) {
         readLock();
         try {
-            List<Policy> policiesByType = getPoliciesByType(policyType);
+            Set<Policy> policiesByType = getPoliciesByType(policyType);
             return policiesByType.stream().filter(policy -> policy.getPolicyName().equals(policyName)).findAny();
         } finally {
             readUnlock();
@@ -523,9 +562,10 @@ public class PolicyMgr implements Writable {
         }
         readLock();
         try {
-            List<Policy> policiesByType = Env.getCurrentEnv().getPolicyMgr().getPoliciesByType(PolicyTypeEnum.STORAGE);
-            policiesByType.stream().filter(policy -> policy.getPolicyName().equals(storagePolicyName)).findAny()
-                    .orElseThrow(() -> new DdlException("Storage policy does not exist. name: " + storagePolicyName));
+            Set<Policy> policiesByType = Env.getCurrentEnv().getPolicyMgr().getPoliciesByType(PolicyTypeEnum.STORAGE);
+            if (!policiesByType.contains(storagePolicyName)) {
+                throw new DdlException("Storage policy does not exist. name: " + storagePolicyName);
+            }
             Optional<Policy> hasDefaultPolicy = policiesByType.stream()
                     .filter(policy -> policy.getPolicyName().equals(StoragePolicy.DEFAULT_STORAGE_POLICY_NAME))
                     .findAny();

@@ -198,6 +198,10 @@ public class PartitionInfo implements Writable {
         return resultList;
     }
 
+    public Map<Long, String> getIdToStoragePolicy() {
+        return idToStoragePolicy;
+    }
+
     // return any item intersect with the newItem.
     // return null if no item intersect.
     public PartitionItem getAnyIntersectItem(PartitionItem newItem, boolean isTemp) {
