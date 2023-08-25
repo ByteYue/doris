@@ -31,7 +31,6 @@ import org.apache.doris.catalog.Table;
 import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.DdlException;
-import org.apache.doris.common.Pair;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
@@ -59,7 +58,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -98,7 +96,7 @@ public class PolicyMgr implements Writable {
         lock.readLock().unlock();
     }
 
-    private Map<String, Set<Pair<Long, PartitionInfo>>> storagePolicyNameToPartitionId = Maps.newConcurrentMap();
+    private Map<Long, Set<Long>> storagePolicyNameToPartitionId = Maps.newConcurrentMap();
 
     // This function should be only called once, is there anything like C++'s callOnce in java?
     public void buildPolicyToPartitionMapAsync() {
@@ -125,7 +123,7 @@ public class PolicyMgr implements Writable {
                         }
                         // Would it be thread safe? TO be tested
                         Set s = storagePolicyNameToPartitionId
-                                    .getOrDefault(entry.getValue(), Sets.newConcurrentHashSet());
+                                .getOrDefault(entry.getValue(), Sets.newConcurrentHashSet());
                         s.add(entry.getKey());
                     });
                 });
@@ -135,15 +133,29 @@ public class PolicyMgr implements Writable {
         }).start();
     }
 
-    public void getStoragePolicyPartitionInfo(String policyName, List<List<String>> infos) {
-        storagePolicyNameToPartitionId.getOrDefault(policyName, new HashSet<>())
-                .stream().forEach(longPartitionInfoPair -> {
-                    String partitionId = longPartitionInfoPair.first.toString();
-                    List<String> info = new ArrayList<>();
-                    info.add(policyName);
-                    info.add(partitionId);
-                    infos.add(info);
-                });
+    public void addStoragePolicyPartitonInfo(Long storageId, Long partitionId) {
+        Set<Long> partitionIds = storagePolicyNameToPartitionId.get(storageId);
+        if (partitionIds == null) {
+            // This indicates that this policy might be already dropped in FE
+            // but there might be delay for be to drop it
+            return;
+        }
+        partitionIds.add(partitionId);
+    }
+
+    public void getStoragePolicyPartitionInfo(Long policyId, List<List<String>> infos) {
+        Set<Long> partitionIds = storagePolicyNameToPartitionId.get(policyId);
+        if (partitionIds == null) {
+            // User tries to query one dropped policy or not exist policy
+            return;
+        }
+        partitionIds.stream().forEach(id -> {
+            String partitionId = id.toString();
+            List<String> info = new ArrayList<>();
+            info.add(policyId.toString());
+            info.add(partitionId);
+            infos.add(info);
+        });
     }
 
     /**
@@ -294,11 +306,17 @@ public class PolicyMgr implements Writable {
         LOG.info("replay create policy: {}", policy);
     }
 
-    public void updatePolicyNameToPartitionMap(String storagePolicy, Pair<Long, PartitionInfo> info, boolean delete) {
+    // 这里上层给的一定是policy的name...
+    public void updatePolicyNameToPartitionMap(String storagePolicy, Long partitionId, boolean delete) {
+        Optional<Policy> policy = getPoliciesByType(PolicyTypeEnum.STORAGE).stream()
+                .filter(p -> p.policyName.equals(storagePolicy)).findFirst();
+        if (!policy.isPresent()) {
+            return;
+        }
         if (delete) {
-            storagePolicyNameToPartitionId.get(storagePolicy).remove(info);
+            storagePolicyNameToPartitionId.get(policy.get()).remove(partitionId);
         } else {
-            storagePolicyNameToPartitionId.get(storagePolicy).add(info);
+            storagePolicyNameToPartitionId.get(policy.get()).add(partitionId);
         }
     }
 

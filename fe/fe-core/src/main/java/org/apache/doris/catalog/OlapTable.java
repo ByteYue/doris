@@ -819,9 +819,10 @@ public class OlapTable extends Table {
         if (partitionInfo.getStoragePolicy(partition.getId()).equals("")) {
             return;
         }
+
         Env.getCurrentEnv()
                 .getPolicyMgr().updatePolicyNameToPartitionMap(partitionInfo.getStoragePolicy(partition.getId()),
-                        Pair.of(partition.getId(), partitionInfo), delete);
+                        partition.getId(), delete);
     }
 
     public void addPartition(Partition partition) {

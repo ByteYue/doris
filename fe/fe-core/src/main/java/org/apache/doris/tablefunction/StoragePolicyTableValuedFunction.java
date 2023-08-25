@@ -41,7 +41,7 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
 
     private static final ImmutableMap<String, Integer> COLUMN_TO_INDEX;
 
-    private String storagePolicyName;
+    private Long storagePolicyId;
 
     static {
         ImmutableMap.Builder<String, Integer> builder = new ImmutableMap.Builder();
@@ -65,9 +65,9 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
                     .filter(entry -> entry.getKey().toLowerCase().equals("storage_policy")).findAny();
         if (!opt.isPresent()) {
             throw new org.apache.doris.nereids
-                .exceptions.AnalysisException("storage policy table-valued-function needs storage_policy");
+                .exceptions.AnalysisException("storage policy table-valued-function needs storage_policy id");
         }
-        storagePolicyName = opt.get().getValue();
+        storagePolicyId = Long.valueOf(opt.get().getValue());
     }
 
     @Override
@@ -90,7 +90,7 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
         TMetaScanRange metaScanRange = new TMetaScanRange();
         metaScanRange.setMetadataType(TMetadataType.STORAGE_POLICY);
         TStoragePolicyMetadataParam storagePolicyMetadataParam = new TStoragePolicyMetadataParam();
-        storagePolicyMetadataParam.setPolicyName(storagePolicyName);
+        storagePolicyMetadataParam.setPolicyId(storagePolicyId);
         metaScanRange.setStoragePolicyParams(storagePolicyMetadataParam);
         return metaScanRange;
     }
