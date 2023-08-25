@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunction {
-    public static final String NAME = "storage policy";
+    public static final String NAME = "storage_policy";
 
     private static final ImmutableList<Column> SCHEMA = ImmutableList.of(
             new Column("StoragePolicyName", ScalarType.createStringType()),

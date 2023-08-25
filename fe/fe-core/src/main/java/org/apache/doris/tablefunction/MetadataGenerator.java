@@ -284,7 +284,8 @@ public class MetadataGenerator {
 
         List<TRow> dataBatch = Lists.newArrayList();
         List<List<String>> infos = Lists.newArrayList();
-        FrontendsProcNode.getFrontendsInfo(Env.getCurrentEnv(), infos);
+        Env.getCurrentEnv().getPolicyMgr()
+                .getStoragePolicyPartitionInfo(params.getStoragePolicyParams().getPolicyName(), infos);
         for (List<String> info : infos) {
             TRow trow = new TRow();
             for (String item : info) {

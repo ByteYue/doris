@@ -26,6 +26,7 @@ import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.Env;
 import org.apache.doris.catalog.OlapTable;
+import org.apache.doris.catalog.Partition;
 import org.apache.doris.catalog.PartitionInfo;
 import org.apache.doris.catalog.Table;
 import org.apache.doris.cluster.ClusterNamespace;
@@ -59,6 +60,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -122,6 +124,16 @@ public class PolicyMgr implements Writable {
         }).start();
     }
 
+    public void getStoragePolicyPartitionInfo(String policyName, List<List<String>> infos) {
+        storagePolicyNameToPartitionId.getOrDefault(policyName, new HashSet<>())
+                .stream().forEach(longPartitionInfoPair -> {
+                    String partitionId = longPartitionInfoPair.first.toString();
+                    List<String> info = new ArrayList<>();
+                    info.add(policyName);
+                    info.add(partitionId);
+                    infos.add(info);
+                });
+    }
     /**
      * Create default storage policy used by master.
      **/
