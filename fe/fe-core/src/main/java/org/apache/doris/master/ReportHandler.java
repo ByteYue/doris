@@ -323,6 +323,7 @@ public class ReportHandler extends Daemon {
                                 + r.getVersion()).collect(Collectors.toList()));
         // send push rpc
         handlePushStoragePolicy(backendId, policyToPush, resourceToPush, policyToDrop);
+        // TODO(yuejing):看一下这里有没有tablet信息，如果有的话用来build信息
     }
 
     private static void diffPolicy(List<TStoragePolicy> storagePoliciesInBe, List<Policy> policiesInFe,

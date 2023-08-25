@@ -37,7 +37,6 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
 
     private static final ImmutableList<Column> SCHEMA = ImmutableList.of(
             new Column("StoragePolicyName", ScalarType.createStringType()),
-            new Column("PartitionName", ScalarType.createStringType()),
             new Column("PartitionID", ScalarType.createType(PrimitiveType.INT)));
 
     private static final ImmutableMap<String, Integer> COLUMN_TO_INDEX;
@@ -60,13 +59,13 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
             org.apache.doris.nereids.exceptions.AnalysisException {
         if (params.size() != 1) {
             throw new org.apache.doris.nereids
-                .exceptions.AnalysisException("storage policy table-valued-function needs at least one param");
+                .exceptions.AnalysisException("storage policy table-valued-function needs only one param");
         }
         Optional<Map.Entry<String, String>> opt = params.entrySet().stream()
                     .filter(entry -> entry.getKey().toLowerCase().equals("storage_policy")).findAny();
         if (!opt.isPresent()) {
             throw new org.apache.doris.nereids
-                .exceptions.AnalysisException("storage policy table-valued-function needs at least one param");
+                .exceptions.AnalysisException("storage policy table-valued-function needs storage_policy");
         }
         storagePolicyName = opt.get().getValue();
     }

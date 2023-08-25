@@ -26,7 +26,6 @@ import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.Env;
 import org.apache.doris.catalog.OlapTable;
-import org.apache.doris.catalog.Partition;
 import org.apache.doris.catalog.PartitionInfo;
 import org.apache.doris.catalog.Table;
 import org.apache.doris.cluster.ClusterNamespace;
@@ -63,6 +62,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
@@ -73,6 +73,8 @@ public class PolicyMgr implements Writable {
     private static final Logger LOG = LogManager.getLogger(PolicyMgr.class);
 
     private ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
+
+    private AtomicBoolean isBuilt = new AtomicBoolean(false);
 
     @SerializedName(value = "typeToPolicyMap")
     private Map<PolicyTypeEnum, Set<Policy>> typeToPolicyMap = Maps.newConcurrentMap();
@@ -100,17 +102,24 @@ public class PolicyMgr implements Writable {
 
     // This function should be only called once, is there anything like C++'s callOnce in java?
     public void buildPolicyToPartitionMapAsync() {
+        if (isBuilt.get()) {
+            return;
+        }
+        LOG.info("Start to build policy to partition map.");
         new Thread(() -> {
             List<Database> dbs = Env.getCurrentEnv().getInternalCatalog().getDbs();
+            LOG.info("Start to build policy to partition map with {} dbs", dbs.size());
             dbs.forEach(db -> {
                 db.getTables().forEach(t -> {
                     if (!(t instanceof OlapTable)) {
                         return;
                     }
                     OlapTable table = (OlapTable) t;
+                    LOG.info("Start to build policy to partition map with table {}", table.getName());
                     PartitionInfo info = table.getPartitionInfo();
                     Map<Long, String> idToPolicyMap = info.getIdToStoragePolicy();
                     idToPolicyMap.entrySet().forEach(entry -> {
+                        LOG.info("policy to partition map with par {}, policy {}", entry.getKey(), entry.getValue());
                         if (entry.getValue().isEmpty()) {
                             return;
                         }
@@ -121,6 +130,8 @@ public class PolicyMgr implements Writable {
                     });
                 });
             });
+            isBuilt.set(true);
+            LOG.info("Succeed to build policy to partition map.");
         }).start();
     }
 
@@ -134,6 +145,7 @@ public class PolicyMgr implements Writable {
                     infos.add(info);
                 });
     }
+
     /**
      * Create default storage policy used by master.
      **/

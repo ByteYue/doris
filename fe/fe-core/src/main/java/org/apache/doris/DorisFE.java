@@ -182,6 +182,7 @@ public class DorisFE {
             }
 
             ThreadPoolManager.registerAllThreadPoolMetric();
+            Env.getCurrentEnv().getPolicyMgr().buildPolicyToPartitionMapAsync();
 
             while (true) {
                 Thread.sleep(2000);
