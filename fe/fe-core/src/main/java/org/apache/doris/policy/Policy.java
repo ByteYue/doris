@@ -104,7 +104,7 @@ public abstract class Policy implements Writable, GsonPostProcessable {
 
     @Override
     public int hashCode() {
-        return policyName.hashCode();
+        return Long.hashCode(id);
     }
 
     @Override
@@ -116,7 +116,7 @@ public abstract class Policy implements Writable, GsonPostProcessable {
             return false;
         }
         Policy other = (Policy) obj;
-        return policyName.equals(other.policyName);
+        return id == other.id;
     }
 
     /**

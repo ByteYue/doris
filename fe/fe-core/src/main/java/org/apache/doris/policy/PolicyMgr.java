@@ -26,7 +26,6 @@ import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.catalog.Database;
 import org.apache.doris.catalog.Env;
 import org.apache.doris.catalog.OlapTable;
-import org.apache.doris.catalog.PartitionInfo;
 import org.apache.doris.catalog.Table;
 import org.apache.doris.cluster.ClusterNamespace;
 import org.apache.doris.common.AnalysisException;
@@ -61,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
@@ -105,28 +105,8 @@ public class PolicyMgr implements Writable {
         }
         LOG.info("Start to build policy to partition map.");
         new Thread(() -> {
-            List<Database> dbs = Env.getCurrentEnv().getInternalCatalog().getDbs();
-            LOG.info("Start to build policy to partition map with {} dbs", dbs.size());
-            dbs.forEach(db -> {
-                db.getTables().forEach(t -> {
-                    if (!(t instanceof OlapTable)) {
-                        return;
-                    }
-                    OlapTable table = (OlapTable) t;
-                    LOG.info("Start to build policy to partition map with table {}", table.getName());
-                    PartitionInfo info = table.getPartitionInfo();
-                    Map<Long, String> idToPolicyMap = info.getIdToStoragePolicy();
-                    idToPolicyMap.entrySet().forEach(entry -> {
-                        LOG.info("policy to partition map with par {}, policy {}", entry.getKey(), entry.getValue());
-                        if (entry.getValue().isEmpty()) {
-                            return;
-                        }
-                        // Would it be thread safe? TO be tested
-                        Set s = storagePolicyNameToPartitionId
-                                .getOrDefault(entry.getValue(), Sets.newConcurrentHashSet());
-                        s.add(entry.getKey());
-                    });
-                });
+            typeToPolicyMap.get(PolicyTypeEnum.STORAGE).forEach(p -> {
+                storagePolicyNameToPartitionId.putIfAbsent(p.getId(), Sets.newConcurrentHashSet());
             });
             isBuilt.set(true);
             LOG.info("Succeed to build policy to partition map.");
@@ -134,12 +114,20 @@ public class PolicyMgr implements Writable {
     }
 
     public void addStoragePolicyPartitonInfo(Long storageId, Long partitionId) {
+        Policy tmpPolicy = new StoragePolicy(storageId, "");
+        // This indicates that this policy might be already dropped in FE
+        // but there might be delay for be to drop it
+        if (!getPoliciesByType(PolicyTypeEnum.STORAGE).contains(tmpPolicy)) {
+            return;
+        }
         Set<Long> partitionIds = storagePolicyNameToPartitionId.get(storageId);
         if (partitionIds == null) {
             // This indicates that this policy might be already dropped in FE
             // but there might be delay for be to drop it
             return;
         }
+        // It's safe to put it here no matter whether the Policy is dropped in another
+        // thread because Java has GC
         partitionIds.add(partitionId);
     }
 
@@ -203,6 +191,12 @@ public class PolicyMgr implements Writable {
      * Drop policy through stmt.
      **/
     public void dropPolicy(DropPolicyStmt stmt) throws DdlException, AnalysisException {
+        // Would it be safe to check in storagePolicyNameToPartitionId?
+        // If the BE hasn't report... then it would be one mess cause storagePolicyNameToPartitionId
+        // has no information? 但是好像这个无法避免，因为partition info也是空的，这样完全可能导致
+        // 假如FE重启过，某台BE挂了，那么这对应的partition的policy信息就拿不到了
+        // 而且刚刚的做法里面呢还有个问题就是如果report一直没做那这个时候这个map就是空，这个时候去drop了 那也是防不住的
+        // 放个todo得了 做不了
         DropPolicyLog dropPolicyLog = DropPolicyLog.fromDropStmt(stmt);
         if (dropPolicyLog.getType() == PolicyTypeEnum.STORAGE) {
             List<Database> databases = Env.getCurrentEnv().getInternalCatalog().getDbs();
@@ -314,9 +308,9 @@ public class PolicyMgr implements Writable {
             return;
         }
         if (delete) {
-            storagePolicyNameToPartitionId.get(policy.get()).remove(partitionId);
+            storagePolicyNameToPartitionId.get(policy.get().getId()).remove(partitionId);
         } else {
-            storagePolicyNameToPartitionId.get(policy.get()).add(partitionId);
+            storagePolicyNameToPartitionId.get(policy.get().getId()).add(partitionId);
         }
     }
 
@@ -330,7 +324,7 @@ public class PolicyMgr implements Writable {
             updateMergeTablePolicyMap();
             return;
         }
-        storagePolicyNameToPartitionId.getOrDefault(policy, Sets.newConcurrentHashSet());
+        storagePolicyNameToPartitionId.getOrDefault(policy.getId(), Sets.newConcurrentHashSet());
     }
 
     public void replayDrop(DropPolicyLog log) {
@@ -349,6 +343,7 @@ public class PolicyMgr implements Writable {
 
     private void unprotectedDrop(DropPolicyLog log) {
         Set<Policy> policies = getPoliciesByType(log.getType());
+        AtomicReference<Long> policyId = null;
         policies.removeIf(policy -> {
             if (policy.matchPolicy(log)) {
                 if (log.getType() == PolicyTypeEnum.STORAGE) {
@@ -357,6 +352,7 @@ public class PolicyMgr implements Writable {
                 if (policy instanceof RowPolicy) {
                     dropTablePolicies((RowPolicy) policy);
                 }
+                policyId.set(policy.getId());
                 return true;
             }
             return false;
@@ -365,7 +361,7 @@ public class PolicyMgr implements Writable {
             updateMergeTablePolicyMap();
             return;
         }
-        storagePolicyNameToPartitionId.remove(log.getPolicyName());
+        storagePolicyNameToPartitionId.remove(policyId.get());
     }
 
     /**

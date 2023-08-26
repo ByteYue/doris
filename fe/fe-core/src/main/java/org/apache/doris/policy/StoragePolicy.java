@@ -142,7 +142,7 @@ public class StoragePolicy extends Policy {
 
     @Override
     public int hashCode() {
-        return policyName.hashCode();
+        return Long.hashCode(id);
     }
 
     @Override
@@ -154,7 +154,7 @@ public class StoragePolicy extends Policy {
             return false;
         }
         Policy other = (Policy) obj;
-        return policyName.equals(other.policyName);
+        return id == other.id;
     }
 
     /**

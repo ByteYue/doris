@@ -458,7 +458,7 @@ struct TFrontendsMetadataParams {
 }
 
 struct TStoragePolicyMetadataParam  {
-  1: optional string policy_name
+  1: optional i64 policy_id
 }
 
 struct TMetaScanRange {

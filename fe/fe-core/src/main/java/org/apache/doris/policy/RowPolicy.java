@@ -150,7 +150,7 @@ public class RowPolicy extends Policy {
     }
 
     public int hashCode() {
-        return policyName.hashCode();
+        return Long.hashCode(id);
     }
 
     @Override
@@ -162,7 +162,7 @@ public class RowPolicy extends Policy {
             return false;
         }
         Policy other = (Policy) obj;
-        return policyName.equals(other.policyName);
+        return id == other.id;
     }
 
     @Override
