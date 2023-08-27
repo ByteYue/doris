@@ -18,7 +18,6 @@
 package org.apache.doris.tablefunction;
 
 import org.apache.doris.catalog.Column;
-import org.apache.doris.catalog.PrimitiveType;
 import org.apache.doris.catalog.ScalarType;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.thrift.TMetaScanRange;
@@ -36,8 +35,8 @@ public class StoragePolicyTableValuedFunction extends MetadataTableValuedFunctio
     public static final String NAME = "storage_policy";
 
     private static final ImmutableList<Column> SCHEMA = ImmutableList.of(
-            new Column("StoragePolicyName", ScalarType.createStringType()),
-            new Column("PartitionID", ScalarType.createType(PrimitiveType.INT)));
+            new Column("StoragePolicyId", ScalarType.createStringType()),
+            new Column("PartitionID", ScalarType.createStringType()));
 
     private static final ImmutableMap<String, Integer> COLUMN_TO_INDEX;
 
