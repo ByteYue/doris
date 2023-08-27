@@ -137,11 +137,11 @@ public class PolicyMgr implements Writable {
             // User tries to query one dropped policy or not exist policy
             return;
         }
-        partitionIds.stream().forEach(id -> {
-            String partitionId = id.toString();
+        partitionIds.forEach(id -> {
+            // String partitionId = id.toString();
             List<String> info = new ArrayList<>();
             info.add(policyId.toString());
-            info.add(partitionId);
+            info.add(String.valueOf(id));
             infos.add(info);
         });
     }

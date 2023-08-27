@@ -224,6 +224,7 @@ Status VMetaScanner::_fetch_metadata(const TMetaScanRange& meta_scan_range) {
         break;
     case TMetadataType::STORAGE_POLICY:
         RETURN_IF_ERROR(_build_storage_policy_metadata_request(meta_scan_range, &request));
+        break;
     default:
         _meta_eos = true;
         return Status::OK();
