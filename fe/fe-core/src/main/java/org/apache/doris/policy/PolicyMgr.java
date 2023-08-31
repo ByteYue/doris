@@ -71,9 +71,6 @@ public class PolicyMgr implements Writable {
     private static final Logger LOG = LogManager.getLogger(PolicyMgr.class);
 
     private ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
-
-    private AtomicBoolean isBuilt = new AtomicBoolean(false);
-
     @SerializedName(value = "typeToPolicyMap")
     private Map<PolicyTypeEnum, Set<Policy>> typeToPolicyMap = Maps.newConcurrentMap();
 
@@ -98,19 +95,17 @@ public class PolicyMgr implements Writable {
 
     private Map<Long, Set<Long>> storagePolicyNameToPartitionId = Maps.newConcurrentMap();
 
+    static {
+        Env.getCurrentEnv().getPolicyMgr().buildPolicyToPartitionMap();
+    }
+
     // This function should be only called once, is there anything like C++'s callOnce in java?
-    public void buildPolicyToPartitionMapAsync() {
-        if (isBuilt.get()) {
-            return;
-        }
+    private void buildPolicyToPartitionMap() {
         LOG.info("Start to build policy to partition map.");
-        new Thread(() -> {
-            typeToPolicyMap.get(PolicyTypeEnum.STORAGE).forEach(p -> {
-                storagePolicyNameToPartitionId.putIfAbsent(p.getId(), Sets.newConcurrentHashSet());
-            });
-            isBuilt.set(true);
-            LOG.info("Succeed to build policy to partition map.");
-        }).start();
+        typeToPolicyMap.get(PolicyTypeEnum.STORAGE).forEach(p -> {
+            storagePolicyNameToPartitionId.putIfAbsent(p.getId(), Sets.newConcurrentHashSet());
+        });
+        LOG.info("Succeed to build policy to partition map.");
     }
 
     public void addStoragePolicyPartitonInfo(Long storageId, Long partitionId) {
@@ -138,7 +133,6 @@ public class PolicyMgr implements Writable {
             return;
         }
         partitionIds.forEach(id -> {
-            // String partitionId = id.toString();
             List<String> info = new ArrayList<>();
             info.add(policyId.toString());
             info.add(String.valueOf(id));
@@ -191,12 +185,6 @@ public class PolicyMgr implements Writable {
      * Drop policy through stmt.
      **/
     public void dropPolicy(DropPolicyStmt stmt) throws DdlException, AnalysisException {
-        // Would it be safe to check in storagePolicyNameToPartitionId?
-        // If the BE hasn't report... then it would be one mess cause storagePolicyNameToPartitionId
-        // has no information? 但是好像这个无法避免，因为partition info也是空的，这样完全可能导致
-        // 假如FE重启过，某台BE挂了，那么这对应的partition的policy信息就拿不到了
-        // 而且刚刚的做法里面呢还有个问题就是如果report一直没做那这个时候这个map就是空，这个时候去drop了 那也是防不住的
-        // 放个todo得了 做不了
         DropPolicyLog dropPolicyLog = DropPolicyLog.fromDropStmt(stmt);
         if (dropPolicyLog.getType() == PolicyTypeEnum.STORAGE) {
             List<Database> databases = Env.getCurrentEnv().getInternalCatalog().getDbs();
@@ -204,7 +192,8 @@ public class PolicyMgr implements Writable {
                 List<Table> tables = db.getTables();
                 for (Table table : tables) {
                     if (table instanceof OlapTable) {
-                        if (((OlapTable) table).getStoragePolicy().equals(dropPolicyLog.getPolicyName())) {
+                        OlapTable olapTable = (OlapTable) table;
+                        if (olapTable.getPartitionInfo().isStoragePolicyUsed(dropPolicyLog.getPolicyName())) {
                             throw new DdlException("the policy " + dropPolicyLog.getPolicyName() + " is used by table: "
                                     + table.getName());
                         }
@@ -237,7 +226,6 @@ public class PolicyMgr implements Writable {
         readLock();
         try {
             Set<Policy> policies = getPoliciesByType(checkedPolicy.getType());
-            // return policies.stream().anyMatch(policy -> policy.matchPolicy(checkedPolicy));
             return policies.contains(checkedPolicy);
         } finally {
             readUnlock();
@@ -300,7 +288,6 @@ public class PolicyMgr implements Writable {
         LOG.info("replay create policy: {}", policy);
     }
 
-    // 这里上层给的一定是policy的name...
     public void updatePolicyNameToPartitionMap(String storagePolicy, Long partitionId, boolean delete) {
         Optional<Policy> policy = getPoliciesByType(PolicyTypeEnum.STORAGE).stream()
                 .filter(p -> p.policyName.equals(storagePolicy)).findFirst();
