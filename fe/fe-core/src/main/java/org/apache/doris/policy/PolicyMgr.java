@@ -97,16 +97,13 @@ public class PolicyMgr implements Writable {
 
     private Map<Long, Set<Long>> storagePolicyNameToPartitionId = Maps.newConcurrentMap();
 
-    static {
-        Env.getCurrentEnv().getPolicyMgr().buildPolicyToPartitionMap();
-    }
-
-    // This function should be only called once, is there anything like C++'s callOnce in java?
     private void buildPolicyToPartitionMap() {
         LOG.info("Start to build policy to partition map.");
-        typeToPolicyMap.get(PolicyTypeEnum.STORAGE).forEach(p -> {
-            storagePolicyNameToPartitionId.putIfAbsent(p.getId(), Sets.newConcurrentHashSet());
-        });
+        if (null != typeToPolicyMap.get(PolicyTypeEnum.STORAGE)) {
+            typeToPolicyMap.get(PolicyTypeEnum.STORAGE).forEach(p -> {
+                storagePolicyNameToPartitionId.putIfAbsent(p.getId(), Sets.newConcurrentHashSet());
+            });
+        }
         LOG.info("Succeed to build policy to partition map.");
     }
 
@@ -532,6 +529,7 @@ public class PolicyMgr implements Writable {
         PolicyMgr policyMgr = GsonUtils.GSON.fromJson(json, PolicyMgr.class);
         // update merge policy cache and userPolicySet
         policyMgr.updateTablePolicies();
+        policyMgr.buildPolicyToPartitionMap();
         return policyMgr;
     }
 

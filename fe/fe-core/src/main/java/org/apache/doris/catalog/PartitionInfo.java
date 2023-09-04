@@ -237,10 +237,16 @@ public class PartitionInfo implements Writable {
     }
 
     public String getStoragePolicy(long partitionId) {
+        if (null == idToDataProperty.get(partitionId)) {
+            return "";
+        }
         return idToDataProperty.get(partitionId).getStoragePolicy();
     }
 
     public void setStoragePolicy(long partitionId, String storagePolicy) {
+        if (null == idToDataProperty.get(partitionId)) {
+            return ;
+        }
         idToDataProperty.get(partitionId).setStoragePolicy(storagePolicy);
     }
 
