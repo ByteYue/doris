@@ -225,7 +225,6 @@ public class PartitionInfo implements Writable {
     }
 
     public void refreshTableStoragePolicy(String storagePolicy) {
-        idToStoragePolicy.replaceAll((k, v) -> storagePolicy);
         idToDataProperty.entrySet().forEach(entry -> {
             entry.getValue().setStoragePolicy(storagePolicy);
         });

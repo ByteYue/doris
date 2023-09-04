@@ -319,7 +319,7 @@ public class RangePartitionInfo extends PartitionInfo {
             Map<String, String> properties = Maps.newHashMap();
             Optional.ofNullable(this.idToDataProperty.get(entry.getKey())).ifPresent(p -> {
                 if (!p.getStoragePolicy().equals("")) {
-                    properties.put("STORAGE POLICY", p);
+                    properties.put("STORAGE POLICY", p.getStoragePolicy());
                 }
             });
 

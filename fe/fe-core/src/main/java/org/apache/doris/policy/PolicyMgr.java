@@ -44,6 +44,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.gson.annotations.SerializedName;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -55,6 +56,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -282,7 +284,7 @@ public class PolicyMgr implements Writable {
 
     public void replayCreate(Policy policy) {
         unprotectedAdd(policy);
-        if (policy instanceof StoragePolicy) {
+        if (policy.getType() == PolicyTypeEnum.STORAGE) {
             ((StoragePolicy) policy).addResourceReference();
         }
         LOG.info("replay create policy: {}", policy);
@@ -308,10 +310,10 @@ public class PolicyMgr implements Writable {
         Set<Policy> dbPolicies = getPoliciesByType(policy.getType());
         dbPolicies.add(policy);
         if (policy.getType() == PolicyTypeEnum.ROW) {
-            updateMergeTablePolicyMap();
+            addTablePolicies((RowPolicy) policy);
             return;
         }
-        storagePolicyNameToPartitionId.getOrDefault(policy.getId(), Sets.newConcurrentHashSet());
+        storagePolicyNameToPartitionId.putIfAbsent(policy.getId(), Sets.newConcurrentHashSet());
     }
 
     public void replayDrop(DropPolicyLog log) {
@@ -336,7 +338,7 @@ public class PolicyMgr implements Writable {
                 if (log.getType() == PolicyTypeEnum.STORAGE) {
                     ((StoragePolicy) policy).removeResourceReference();
                 }
-                if (policy instanceof RowPolicy) {
+                if (policy.getType() == PolicyTypeEnum.ROW) {
                     dropTablePolicies((RowPolicy) policy);
                 }
                 policyId.set(policy.getId());
@@ -344,10 +346,6 @@ public class PolicyMgr implements Writable {
             }
             return false;
         });
-        if (log.getType() == PolicyTypeEnum.ROW) {
-            updateMergeTablePolicyMap();
-            return;
-        }
         storagePolicyNameToPartitionId.remove(policyId.get());
     }
 
@@ -460,7 +458,7 @@ public class PolicyMgr implements Writable {
                     continue;
                 }
 
-                if (policy instanceof StoragePolicy && ((StoragePolicy) policy).getStorageResource() == null) {
+                if (policy.getType() == PolicyTypeEnum.STORAGE && ((StoragePolicy) policy).getStorageResource() == null) {
                     // default storage policy not init.
                     continue;
                 }
