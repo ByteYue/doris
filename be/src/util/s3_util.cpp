@@ -22,6 +22,7 @@
 #include <aws/core/utils/logging/LogLevel.h>
 #include <aws/core/utils/logging/LogSystemInterface.h>
 #include <aws/core/utils/memory/stl/AWSStringStream.h>
+#include <aws/core/utils/ratelimiter/DefaultRateLimiter.h>
 #include <aws/s3/S3Client.h>
 #include <bvar/reducer.h>
 #include <util/string_util.h>
@@ -167,6 +168,14 @@ std::shared_ptr<Aws::S3::S3Client> S3ClientFactory::create(const S3Conf& s3_conf
     }
     if (s3_conf.connect_timeout_ms > 0) {
         aws_config.connectTimeoutMs = s3_conf.connect_timeout_ms;
+    }
+    if (s3_conf.read_limit_bandwidth > 0) {
+        aws_config.readRateLimiter = Aws::MakeShared<Aws::Utils::RateLimits::DefaultRateLimiter<>>(
+                "", s3_conf.read_limit_bandwidth);
+    }
+    if (s3_conf.write_limit_bandwidth > 0) {
+        aws_config.writeRateLimiter = Aws::MakeShared<Aws::Utils::RateLimits::DefaultRateLimiter<>>(
+                "", s3_conf.write_limit_bandwidth);
     }
 
     std::shared_ptr<Aws::S3::S3Client> new_client = std::make_shared<Aws::S3::S3Client>(

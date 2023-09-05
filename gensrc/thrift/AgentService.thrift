@@ -71,6 +71,8 @@ struct TS3StorageParam {
     8: optional string root_path
     9: optional string bucket
     10: optional bool use_path_style = false
+    11: optional i64 read_limit_bandwidth = 0;
+    12: optional i64 write_limit_bandwidth = 0;
 }
 
 struct TStoragePolicy {

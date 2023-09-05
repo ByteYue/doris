@@ -77,6 +77,8 @@ struct S3Conf {
     int request_timeout_ms = -1;
     int connect_timeout_ms = -1;
     bool use_virtual_addressing = true;
+    int64 read_limit_bandwidth = 0;
+    int64 write_limit_bandwidth = 0;
 
     std::string to_string() const {
         return fmt::format(
