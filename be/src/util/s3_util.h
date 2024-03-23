@@ -18,6 +18,7 @@
 #pragma once
 
 #include <aws/core/Aws.h>
+#include <aws/s3/S3Errors.h>
 #include <aws/core/client/ClientConfiguration.h>
 #include <bvar/bvar.h>
 #include <fmt/format.h>
@@ -31,7 +32,9 @@
 #include <unordered_map>
 
 #include "common/status.h"
+#include "common/config.h"
 #include "gutil/hash/hash.h"
+#include "util/s3_rate_limiter.h"
 
 namespace Aws {
 namespace S3 {
@@ -137,6 +140,8 @@ public:
         return instance;
     }
 
+    S3RateLimiterHolder* rate_limiter(S3RateLimitType type);
+
 private:
     S3ClientFactory();
     static std::string get_valid_ca_cert_path();
@@ -145,6 +150,28 @@ private:
     std::mutex _lock;
     std::unordered_map<uint64_t, std::shared_ptr<Aws::S3::S3Client>> _cache;
     std::string _ca_cert_file_path;
+    std::array<std::unique_ptr<S3RateLimiterHolder>, 2> _rate_limiters;
 };
+
+inline Aws::Client::AWSError<Aws::S3::S3Errors> s3_error_factory() {
+    return {Aws::S3::S3Errors::INTERNAL_FAILURE,
+                                                    "exceeds limit", "exceeds limit", false};
+}
+
+template <typename Func>
+auto do_s3_rate_limit(S3RateLimitType type, Func callback) -> decltype(callback()) {
+    using T = decltype(callback());
+    if (!config::enable_s3_rate_limiter) {
+        return callback();
+    }
+    auto sleep_duration = S3ClientFactory::instance().rate_limiter(type)->add(1);
+    if (sleep_duration < 0) {
+        return T(s3_error_factory());
+    }
+    return callback();
+}
+
+#define DO_S3_PUT_RATE_LIMIT(code) do_s3_rate_limit(S3RateLimitType::PUT, [&](){ return (code); })
+#define DO_S3_GET_RATE_LIMIT(code) do_s3_rate_limit(S3RateLimitType::GET, [&](){ return (code); })
 
 } // end namespace doris

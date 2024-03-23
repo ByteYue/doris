@@ -59,6 +59,7 @@
 #include "util/defer_op.h"
 #include "util/doris_metrics.h"
 #include "util/runtime_profile.h"
+#include "util/s3_rate_limiter.h"
 #include "util/s3_util.h"
 
 namespace Aws::S3::Model {
@@ -441,7 +442,9 @@ Status S3FileWriter::_complete() {
         return s;
     });
     SCOPED_BVAR_LATENCY(s3_bvar::s3_multi_part_upload_latency);
-    auto complete_outcome = _client->CompleteMultipartUpload(complete_request);
+    auto complete_outcome = do_s3_rate_limit(S3RateLimitType::PUT, [&]() {
+        return _client->CompleteMultipartUpload(complete_request);
+    });
 
     if (!complete_outcome.IsSuccess()) {
         _st = s3fs_error(
