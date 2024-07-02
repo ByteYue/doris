@@ -73,6 +73,19 @@ bool to_int(std::string_view str, int& res) {
     return ec == std::errc {};
 }
 
+class CustomRetryStrategy final : public Aws::Client::DefaultRetryStrategy {
+public:
+    CustomRetryStrategy(int maxRetries) : DefaultRetryStrategy(maxRetries) {}
+
+    bool ShouldRetry(const Aws::Client::AWSError<Aws::Client::CoreErrors>& error,
+                     long attemptedRetries) const override {
+        if (error.GetResponseCode() == Aws::Http::HttpResponseCode::TOO_MANY_REQUESTS) {
+            return true;
+        }
+        return Aws::Client::DefaultRetryStrategy::ShouldRetry(error, attemptedRetries);
+    }
+};
+
 constexpr char USE_PATH_STYLE[] = "use_path_style";
 
 constexpr char AZURE_PROVIDER_STRING[] = "AZURE";
@@ -205,8 +218,11 @@ std::shared_ptr<io::ObjStorageClient> S3ClientFactory::_create_azure_client(
     const std::string container_name = s3_conf.bucket;
     const std::string uri = fmt::format("{}://{}.blob.core.windows.net/{}",
                                         config::s3_client_http_scheme, s3_conf.ak, container_name);
+    Azure::Storage::Blobs::BlobClientOptions options;
+    options.Retry.StatusCodes.insert(Azure::Core::Http::HttpStatusCode::TooManyRequests);
 
-    auto containerClient = std::make_shared<Azure::Storage::Blobs::BlobContainerClient>(uri, cred);
+    auto containerClient = std::make_shared<Azure::Storage::Blobs::BlobContainerClient>(
+            uri, cred, std::move(options));
     LOG_INFO("create one azure client with {}", s3_conf.to_string());
     return std::make_shared<io::AzureObjStorageClient>(std::move(containerClient));
 }
@@ -253,8 +269,7 @@ std::shared_ptr<io::ObjStorageClient> S3ClientFactory::_create_s3_client(
         aws_config.scheme = Aws::Http::Scheme::HTTP;
     }
 
-    aws_config.retryStrategy =
-            std::make_shared<Aws::Client::DefaultRetryStrategy>(config::max_s3_client_retry);
+    aws_config.retryStrategy = std::make_shared<CustomRetryStrategy>(config::max_s3_client_retry);
     std::shared_ptr<Aws::S3::S3Client> new_client;
     if (!s3_conf.ak.empty() && !s3_conf.sk.empty()) {
         Aws::Auth::AWSCredentials aws_cred(s3_conf.ak, s3_conf.sk);
