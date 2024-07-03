@@ -79,7 +79,8 @@ public:
 
     bool ShouldRetry(const Aws::Client::AWSError<Aws::Client::CoreErrors>& error,
                      long attemptedRetries) const override {
-        if (error.GetResponseCode() == Aws::Http::HttpResponseCode::TOO_MANY_REQUESTS) {
+        if (attemptedRetries < m_maxRetries &&
+            error.GetResponseCode() == Aws::Http::HttpResponseCode::TOO_MANY_REQUESTS) {
             return true;
         }
         return Aws::Client::DefaultRetryStrategy::ShouldRetry(error, attemptedRetries);
@@ -220,6 +221,7 @@ std::shared_ptr<io::ObjStorageClient> S3ClientFactory::_create_azure_client(
                                         config::s3_client_http_scheme, s3_conf.ak, container_name);
     Azure::Storage::Blobs::BlobClientOptions options;
     options.Retry.StatusCodes.insert(Azure::Core::Http::HttpStatusCode::TooManyRequests);
+    options.Retry.MaxRetries = config::max_s3_client_retry;
 
     auto containerClient = std::make_shared<Azure::Storage::Blobs::BlobContainerClient>(
             uri, cred, std::move(options));
