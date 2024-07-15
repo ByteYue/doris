@@ -29,6 +29,7 @@
 #include <util/string_util.h>
 
 #include <atomic>
+#include <azure/core/http/policies/policy.hpp>
 #include <azure/storage/blobs/blob_container_client.hpp>
 #include <cstdlib>
 #include <filesystem>
@@ -87,6 +88,25 @@ public:
         }
         return Aws::Client::DefaultRetryStrategy::ShouldRetry(error, attemptedRetries);
     }
+};
+
+class AzureRetryRecordPolicy final : public Azure::Core::Http::Policies::HttpPolicy {
+public:
+    AzureRetryRecordPolicy(Azure::Core::Http::Policies::RetryOptions options)
+            : options(std::move(options)) {}
+    std::unique_ptr<Azure::Core::Http::RawResponse> Send(
+            Azure::Core::Http::Request& request,
+            Azure::Core::Http::Policies::NextHttpPolicy nextPolicy,
+            Azure::Core::Context const& context) const override {
+                
+                return nextPolicy.Send(request, context);
+            }
+    std::unique_ptr<HttpPolicy> Clone() const override {
+        return std::make_unique<AzureRetryRecordPolicy>(*this);
+    }
+
+private:
+    Azure::Core::Http::Policies::RetryOptions options;
 };
 
 constexpr char USE_PATH_STYLE[] = "use_path_style";
@@ -227,6 +247,7 @@ std::shared_ptr<io::ObjStorageClient> S3ClientFactory::_create_azure_client(
 
     auto containerClient = std::make_shared<Azure::Storage::Blobs::BlobContainerClient>(
             uri, cred, std::move(options));
+    options.PerRetryPolicies;
     LOG_INFO("create one azure client with {}", s3_conf.to_string());
     return std::make_shared<io::AzureObjStorageClient>(std::move(containerClient));
 }
