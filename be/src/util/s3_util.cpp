@@ -73,6 +73,7 @@ bool to_int(std::string_view str, int& res) {
     return ec == std::errc {};
 }
 
+bvar::Adder<int64_t> too_many_request_retry_times("too_many_request_retry_times");
 class CustomRetryStrategy final : public Aws::Client::DefaultRetryStrategy {
 public:
     CustomRetryStrategy(int maxRetries) : DefaultRetryStrategy(maxRetries) {}
@@ -81,6 +82,7 @@ public:
                      long attemptedRetries) const override {
         if (attemptedRetries < m_maxRetries &&
             error.GetResponseCode() == Aws::Http::HttpResponseCode::TOO_MANY_REQUESTS) {
+            too_many_request_retry_times << 1;
             return true;
         }
         return Aws::Client::DefaultRetryStrategy::ShouldRetry(error, attemptedRetries);
